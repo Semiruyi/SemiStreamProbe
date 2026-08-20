@@ -18,8 +18,8 @@ struct NalUnitRef {
     std::size_t payload_size{0};
 };
 
-// TODO: implement three-byte/four-byte start-code scanning in the first
-// learning milestone. This function intentionally has no parser logic yet.
+// Finds three-byte and four-byte Annex-B start codes. Leading and trailing
+// zero bytes are framing bytes and are not included in a NAL payload.
 [[nodiscard]] std::expected<std::vector<NalUnitRef>, ParseError>
 scan_annex_b(ByteView bytes);
 

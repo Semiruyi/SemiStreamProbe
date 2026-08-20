@@ -8,6 +8,12 @@ std::string_view to_string(ParseErrorCode code) noexcept {
         return "not_implemented";
     case ParseErrorCode::invalid_input:
         return "invalid_input";
+    case ParseErrorCode::start_code_not_found:
+        return "start_code_not_found";
+    case ParseErrorCode::empty_nal_unit:
+        return "empty_nal_unit";
+    case ParseErrorCode::forbidden_zero_bit_set:
+        return "forbidden_zero_bit_set";
     case ParseErrorCode::io_error:
         return "io_error";
     }

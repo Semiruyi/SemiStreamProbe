@@ -22,6 +22,12 @@ function(ssp_enable_warnings target)
     endif()
 endfunction()
 
+function(ssp_use_portable_mingw_runtime target)
+    if(MINGW)
+        target_link_options(${target} PRIVATE -static -static-libgcc -static-libstdc++)
+    endif()
+endfunction()
+
 add_library(semi_stream_probe_core STATIC
     src/core/annex_b.cpp
     src/core/h264_syntax.cpp
@@ -65,6 +71,7 @@ target_link_libraries(semistreamprobe
 
 target_compile_features(semistreamprobe PRIVATE cxx_std_23)
 ssp_enable_warnings(semistreamprobe)
+ssp_use_portable_mingw_runtime(semistreamprobe)
 
 include(CTest)
 
@@ -80,10 +87,56 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
 
     target_compile_features(semi_stream_probe_smoke_tests PRIVATE cxx_std_23)
     ssp_enable_warnings(semi_stream_probe_smoke_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_smoke_tests)
 
     add_test(
         NAME semi_stream_probe_smoke_tests
         COMMAND semi_stream_probe_smoke_tests
+    )
+
+    add_executable(semi_stream_probe_annex_b_tests
+        tests/annex_b_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_annex_b_tests
+        PRIVATE
+            semi_stream_probe_core
+    )
+    target_compile_features(semi_stream_probe_annex_b_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_annex_b_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_annex_b_tests)
+    add_test(
+        NAME semi_stream_probe_annex_b_tests
+        COMMAND semi_stream_probe_annex_b_tests
+    )
+
+    add_executable(semi_stream_probe_nal_tests
+        tests/nal_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_nal_tests
+        PRIVATE
+            semi_stream_probe_core
+    )
+    target_compile_features(semi_stream_probe_nal_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_nal_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_nal_tests)
+    add_test(
+        NAME semi_stream_probe_nal_tests
+        COMMAND semi_stream_probe_nal_tests
+    )
+
+    add_executable(semi_stream_probe_application_tests
+        tests/application_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_application_tests
+        PRIVATE
+            semi_stream_probe_application
+    )
+    target_compile_features(semi_stream_probe_application_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_application_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_application_tests)
+    add_test(
+        NAME semi_stream_probe_application_tests
+        COMMAND semi_stream_probe_application_tests
     )
 endif()
 

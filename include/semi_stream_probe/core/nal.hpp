@@ -13,10 +13,11 @@ struct NalHeader {
     std::uint8_t nal_unit_type{0};
 };
 
-// TODO: parse the first byte of a NAL unit after the Annex-B framing layer
-// has identified the payload.
+// Parses the first byte of a NAL unit after framing has identified its payload.
 [[nodiscard]] std::expected<NalHeader, ParseError>
 parse_nal_header(ByteView nal_unit);
+
+[[nodiscard]] const char* nal_unit_type_name(std::uint8_t nal_unit_type) noexcept;
 
 } // namespace semi_stream_probe
 

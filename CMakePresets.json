@@ -9,10 +9,10 @@
     {
       "name": "mingw-base",
       "hidden": true,
-      "generator": "MinGW Makefiles",
+      "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_CXX_COMPILER": "g++",
-        "CMAKE_MAKE_PROGRAM": "mingw32-make",
+        "CMAKE_MAKE_PROGRAM": "ninja",
         "SSP_BUILD_TESTS": "ON"
       }
     },

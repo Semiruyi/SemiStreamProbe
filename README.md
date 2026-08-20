@@ -2,15 +2,17 @@
 
 ## 当前状态
 
-项目当前已建立无第三方运行时依赖的 C++23 工程骨架，包括：
+项目当前已完成第一个可运行的 Annex-B 检查链路，包括：
 
 - `semi_stream_probe_core` 核心静态库；
 - `semi_stream_probe_application` 应用层静态库；
 - `semistreamprobe` CLI 入口；
-- CTest 编译冒烟测试；
-- Annex-B、NAL、BitReader 和 SPS/PPS 的接口占位。
+- 三字节/四字节 Annex-B Start Code 扫描；
+- NAL Header 解析和非法 `forbidden_zero_bit` 检查；
+- `inspect <file.h264> [--nal-list]` 文件检查；
+- Annex-B、NAL、应用层和编译冒烟测试。
 
-当前刻意没有实现码流解析逻辑，后续将按学习顺序逐个模块完成。架构说明见
+SPS/PPS、Slice 和 RTP 解析仍按后续里程碑逐步实现。架构说明见
 [docs/architecture.md](docs/architecture.md)。
 
 ## 构建骨架
@@ -31,13 +33,13 @@ cmake --build --preset mingw-release
 ctest --preset mingw-release
 ```
 
-Preset 假定 `g++` 和 `mingw32-make` 已经位于 `PATH` 中。Visual Studio 或其他工具链可以
+Preset 假定 `g++` 和 `ninja` 已经位于 `PATH` 中。Visual Studio 或其他工具链可以
 后续增加独立的 Preset，不需要修改核心代码。
 
-查看 CLI 占位帮助：
+查看 CLI 帮助：
 
 ```powershell
-.\build-mingw\semistreamprobe.exe --help
+.\build\mingw-debug\semistreamprobe.exe --help
 ```
 
 SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。它面向音视频开发、
@@ -231,11 +233,11 @@ RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输�
 
 ### Milestone 1：Annex-B 与 NAL
 
-- [ ] 三字节和四字节 Start Code
-- [ ] NAL Header 解析
+- [x] 三字节和四字节 Start Code
+- [x] NAL Header 解析
 - [ ] VCL/非 VCL 分类与统计
 - [ ] 截断、空 NAL 和非法 `forbidden_zero_bit` 诊断
-- [ ] 逐 NAL 文本输出
+- [x] 逐 NAL 文本输出
 
 ### Milestone 2：参数集
 
@@ -299,12 +301,12 @@ RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输�
 
 ## 构建
 
-构建方式将在 Milestone 0 完成后补充。目标工作流为：
+当前 MinGW 工作流为：
 
 ```powershell
-cmake --preset windows
-cmake --build --preset windows
-ctest --test-dir build --output-on-failure
+cmake --preset mingw-debug
+cmake --build --preset mingw-debug
+ctest --preset mingw-debug
 ```
 
 ## 参考标准

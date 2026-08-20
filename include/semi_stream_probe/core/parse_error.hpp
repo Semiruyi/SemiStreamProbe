@@ -9,6 +9,9 @@ namespace semi_stream_probe {
 enum class ParseErrorCode {
     not_implemented,
     invalid_input,
+    start_code_not_found,
+    empty_nal_unit,
+    forbidden_zero_bit_set,
     io_error,
 };
 
