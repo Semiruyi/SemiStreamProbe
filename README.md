@@ -1,5 +1,45 @@
 # SemiStreamProbe
 
+## 当前状态
+
+项目当前已建立无第三方运行时依赖的 C++23 工程骨架，包括：
+
+- `semi_stream_probe_core` 核心静态库；
+- `semi_stream_probe_application` 应用层静态库；
+- `semistreamprobe` CLI 入口；
+- CTest 编译冒烟测试；
+- Annex-B、NAL、BitReader 和 SPS/PPS 的接口占位。
+
+当前刻意没有实现码流解析逻辑，后续将按学习顺序逐个模块完成。架构说明见
+[docs/architecture.md](docs/architecture.md)。
+
+## 构建骨架
+
+项目只需要 CMake、C++23 编译器和标准库。当前环境可以直接使用 MinGW Preset：
+
+```powershell
+cmake --preset mingw-debug
+cmake --build --preset mingw-debug
+ctest --preset mingw-debug
+```
+
+Release 构建：
+
+```powershell
+cmake --preset mingw-release
+cmake --build --preset mingw-release
+ctest --preset mingw-release
+```
+
+Preset 假定 `g++` 和 `mingw32-make` 已经位于 `PATH` 中。Visual Studio 或其他工具链可以
+后续增加独立的 Preset，不需要修改核心代码。
+
+查看 CLI 占位帮助：
+
+```powershell
+.\build-mingw\semistreamprobe.exe --help
+```
+
 SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。它面向音视频开发、
 测试和故障排查场景，目标是把“花屏、卡顿、无法起播”等现象转换为可观察、可复现的
 码流证据。
@@ -184,10 +224,10 @@ RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输�
 
 ### Milestone 0：工程基线
 
-- [ ] C++23、CMake 和测试框架
+- [x] C++23、CMake 和无第三方依赖的冒烟测试入口
+- [x] CLI、错误模型和测试媒体约定的接口骨架
+- [x] 基础项目文档
 - [ ] Windows 构建与持续集成
-- [ ] CLI、错误模型和测试媒体约定
-- [ ] 基础项目文档
 
 ### Milestone 1：Annex-B 与 NAL
 
