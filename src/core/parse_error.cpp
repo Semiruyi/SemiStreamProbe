@@ -20,6 +20,8 @@ std::string_view to_string(ParseErrorCode code) noexcept {
         return "unexpected_end_of_data";
     case ParseErrorCode::exp_golomb_overflow:
         return "exp_golomb_overflow";
+    case ParseErrorCode::invalid_sps:
+        return "invalid_sps";
     case ParseErrorCode::io_error:
         return "io_error";
     }

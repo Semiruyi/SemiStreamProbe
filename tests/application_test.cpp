@@ -1,7 +1,8 @@
 #include "semi_stream_probe/application/inspect.hpp"
 #include "semi_stream_probe/core/types.hpp"
 
-#include <array>
+#include "h264_test_data.hpp"
+
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -24,11 +25,22 @@ void check(bool condition, std::string_view message) {
 int main() {
     const auto sample_path =
         std::filesystem::current_path() / "semi_stream_probe_test_sample.h264";
-    constexpr std::array<semi_stream_probe::Byte, 15> bytes{
-        0x00, 0x00, 0x00, 0x01, 0x67, 0x64,
+    semi_stream_probe::test::BaselineSpsOptions sps_options;
+    sps_options.crop_bottom = 4;
+    const auto sps_rbsp =
+        semi_stream_probe::test::make_baseline_sps_rbsp(sps_options);
+    const auto sps_ebsp = semi_stream_probe::test::rbsp_to_ebsp(sps_rbsp);
+
+    semi_stream_probe::ByteBuffer bytes{
+        0x00, 0x00, 0x00, 0x01, 0x67,
+    };
+    bytes.insert(bytes.end(), sps_ebsp.begin(), sps_ebsp.end());
+    const semi_stream_probe::ByteBuffer remaining_nal_units{
         0x00, 0x00, 0x01, 0x68, 0xEE,
         0x00, 0x00, 0x01, 0x65,
     };
+    bytes.insert(bytes.end(), remaining_nal_units.begin(),
+                 remaining_nal_units.end());
 
     {
         std::ofstream sample(sample_path, std::ios::binary);
@@ -47,8 +59,19 @@ int main() {
     if (result) {
         check(result->input_size == bytes.size(), "input byte count");
         check(result->nal_units.size() == 3, "NAL unit count");
+        check(result->sequence_parameter_sets.size() == 1, "SPS count");
+        if (!result->sequence_parameter_sets.empty()) {
+            check(result->sequence_parameter_sets.front().width == 1920 &&
+                      result->sequence_parameter_sets.front().height == 1080,
+                  "SPS display dimensions");
+        }
         const auto text = semi_stream_probe::application::render_text(*result, options);
         check(text.find("NAL units: 3") != std::string::npos, "summary count");
+        check(text.find("Resolution: 1920x1080") != std::string::npos,
+              "summary resolution");
+        check(text.find("Profile: Baseline") != std::string::npos,
+              "summary profile");
+        check(text.find("Level: 4.0") != std::string::npos, "summary level");
         check(text.find("SPS") != std::string::npos, "SPS list entry");
         check(text.find("PPS") != std::string::npos, "PPS list entry");
         check(text.find("IDR_SLICE") != std::string::npos, "IDR list entry");

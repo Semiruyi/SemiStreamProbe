@@ -1,5 +1,6 @@
 #include "semi_stream_probe/application/inspect.hpp"
 
+#include "semi_stream_probe/core/rbsp.hpp"
 #include "semi_stream_probe/core/types.hpp"
 
 #include <fstream>
@@ -9,6 +10,57 @@
 #include <utility>
 
 namespace semi_stream_probe::application {
+
+namespace {
+
+[[nodiscard]] std::size_t rbsp_offset_to_ebsp_offset(ByteView ebsp,
+                                                     std::size_t rbsp_offset) {
+    std::size_t rbsp_index = 0;
+    std::size_t consecutive_zero_bytes = 0;
+    for (std::size_t index = 0; index < ebsp.size(); ++index) {
+        const Byte value = ebsp[index];
+        if (value == 0x03 && consecutive_zero_bytes == 2 &&
+            index + 1 < ebsp.size() && ebsp[index + 1] <= 0x03) {
+            consecutive_zero_bytes = 0;
+            continue;
+        }
+
+        if (rbsp_index == rbsp_offset) {
+            return index;
+        }
+        ++rbsp_index;
+
+        if (value == 0x00) {
+            if (consecutive_zero_bytes < 2) {
+                ++consecutive_zero_bytes;
+            }
+        } else {
+            consecutive_zero_bytes = 0;
+        }
+    }
+    return ebsp.size();
+}
+
+[[nodiscard]] ParseError translate_sps_error(ParseError error,
+                                             const NalUnitRef& location,
+                                             ByteView ebsp) {
+    constexpr std::size_t nal_header_size = 1;
+    constexpr std::size_t bits_per_byte = 8;
+
+    const auto rbsp_byte_offset = error.bit_offset / bits_per_byte;
+    const auto bit_in_byte = error.bit_offset % bits_per_byte;
+    const auto ebsp_byte_offset =
+        rbsp_offset_to_ebsp_offset(ebsp, rbsp_byte_offset);
+    const auto source_byte_offset =
+        location.payload_offset + nal_header_size + ebsp_byte_offset;
+
+    error.byte_offset = source_byte_offset;
+    error.bit_offset = source_byte_offset * bits_per_byte + bit_in_byte;
+    error.nal_index = location.index;
+    return error;
+}
+
+} // namespace
 
 std::expected<InspectResult, ParseError>
 inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*/) {
@@ -53,6 +105,7 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
     InspectResult result{
         .input_size = bytes.size(),
         .nal_units = {},
+        .sequence_parameter_sets = {},
     };
     result.nal_units.reserve(locations->size());
     for (const auto& location : *locations) {
@@ -69,6 +122,25 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
             .location = location,
             .header = *header,
         });
+
+        if (header->nal_unit_type == 7) {
+            constexpr std::size_t nal_header_size = 1;
+            const auto ebsp = payload.subspan(nal_header_size);
+            auto rbsp = ebsp_to_rbsp(ebsp);
+            if (!rbsp) {
+                auto error = std::move(rbsp.error());
+                error.byte_offset += location.payload_offset + nal_header_size;
+                error.nal_index = location.index;
+                return std::unexpected(std::move(error));
+            }
+
+            auto sps = parse_sps(*rbsp);
+            if (!sps) {
+                return std::unexpected(translate_sps_error(
+                    std::move(sps.error()), location, ebsp));
+            }
+            result.sequence_parameter_sets.push_back(*sps);
+        }
     }
 
     return result;
@@ -76,8 +148,15 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
 
 std::string render_text(const InspectResult& result, const InspectOptions& options) {
     std::ostringstream output;
-    output << "Codec: H.264/AVC\n"
-           << "Input bytes: " << result.input_size << '\n'
+    output << "Codec: H.264/AVC\n";
+    if (!result.sequence_parameter_sets.empty()) {
+        const auto& sps = result.sequence_parameter_sets.front();
+        output << "Resolution: " << sps.width << 'x' << sps.height << '\n'
+               << "Profile: " << h264_profile_name(sps.profile_idc) << '\n'
+               << "Level: " << h264_level_name(sps) << '\n'
+               << "SPS id: " << sps.seq_parameter_set_id << '\n';
+    }
+    output << "Input bytes: " << result.input_size << '\n'
            << "NAL units: " << result.nal_units.size() << '\n';
 
     if (!options.nal_list) {

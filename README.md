@@ -11,8 +11,11 @@
 - NAL Header 解析和非法 `forbidden_zero_bit` 检查；
 - `inspect <file.h264> [--nal-list]` 文件检查；
 - Annex-B、NAL、应用层和编译冒烟测试。
+- EBSP 到 RBSP 转换和位读取/Exp-Golomb；
+- SPS Profile、Level、色度、位深、分辨率和 cropping 解析；
+- `inspect` 摘要中的 SPS 信息输出。
 
-SPS/PPS、Slice 和 RTP 解析仍按后续里程碑逐步实现。架构说明见
+PPS、Slice 和 RTP 解析仍按后续里程碑逐步实现。架构说明见
 [docs/architecture.md](docs/architecture.md)。
 
 ## 构建骨架
@@ -243,9 +246,11 @@ RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输�
 
 - [x] EBSP 到 RBSP 转换
 - [x] 位读取与有符号/无符号 Exp-Golomb
-- [ ] SPS/PPS 解析
-- [ ] 分辨率、Profile、Level、色度格式和位深
-- [ ] cropping 与基础 VUI 字段
+- [x] SPS 解析
+- [ ] PPS 解析
+- [x] 分辨率、Profile、Level、色度格式和位深
+- [x] cropping
+- [ ] 基础 VUI 字段
 
 ### Milestone 3：Slice 与 GOP
 
