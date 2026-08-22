@@ -30,17 +30,23 @@ int main() {
     const auto sps_rbsp =
         semi_stream_probe::test::make_baseline_sps_rbsp(sps_options);
     const auto sps_ebsp = semi_stream_probe::test::rbsp_to_ebsp(sps_rbsp);
+    const auto pps_rbsp = semi_stream_probe::test::make_baseline_pps_rbsp();
+    const auto pps_ebsp = semi_stream_probe::test::rbsp_to_ebsp(pps_rbsp);
 
+    // Put PPS before SPS to verify inspect resolves parameter sets in two passes.
     semi_stream_probe::ByteBuffer bytes{
-        0x00, 0x00, 0x00, 0x01, 0x67,
+        0x00, 0x00, 0x00, 0x01, 0x68,
     };
+    bytes.insert(bytes.end(), pps_ebsp.begin(), pps_ebsp.end());
+    const semi_stream_probe::ByteBuffer sps_start{
+        0x00, 0x00, 0x01, 0x67,
+    };
+    bytes.insert(bytes.end(), sps_start.begin(), sps_start.end());
     bytes.insert(bytes.end(), sps_ebsp.begin(), sps_ebsp.end());
-    const semi_stream_probe::ByteBuffer remaining_nal_units{
-        0x00, 0x00, 0x01, 0x68, 0xEE,
+    const semi_stream_probe::ByteBuffer idr{
         0x00, 0x00, 0x01, 0x65,
     };
-    bytes.insert(bytes.end(), remaining_nal_units.begin(),
-                 remaining_nal_units.end());
+    bytes.insert(bytes.end(), idr.begin(), idr.end());
 
     {
         std::ofstream sample(sample_path, std::ios::binary);
@@ -60,6 +66,13 @@ int main() {
         check(result->input_size == bytes.size(), "input byte count");
         check(result->nal_units.size() == 3, "NAL unit count");
         check(result->sequence_parameter_sets.size() == 1, "SPS count");
+        check(result->picture_parameter_sets.size() == 1, "PPS count");
+        if (!result->picture_parameter_sets.empty()) {
+            check(result->picture_parameter_sets.front().pic_parameter_set_id == 0,
+                  "PPS id");
+            check(result->picture_parameter_sets.front().seq_parameter_set_id == 0,
+                  "PPS referenced SPS id");
+        }
         if (!result->sequence_parameter_sets.empty()) {
             check(result->sequence_parameter_sets.front().width == 1920 &&
                       result->sequence_parameter_sets.front().height == 1080,
@@ -72,6 +85,9 @@ int main() {
         check(text.find("Profile: Baseline") != std::string::npos,
               "summary profile");
         check(text.find("Level: 4.0") != std::string::npos, "summary level");
+        check(text.find("PPS: 1") != std::string::npos, "PPS summary count");
+        check(text.find("PPS id: 0 (SPS 0)") != std::string::npos,
+              "PPS summary id");
         check(text.find("SPS") != std::string::npos, "SPS list entry");
         check(text.find("PPS") != std::string::npos, "PPS list entry");
         check(text.find("IDR_SLICE") != std::string::npos, "IDR list entry");

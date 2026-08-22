@@ -117,6 +117,36 @@ make_baseline_sps_rbsp(const BaselineSpsOptions& options = {}) {
     return writer.finish_rbsp();
 }
 
+struct BaselinePpsOptions {
+    std::uint32_t pic_parameter_set_id{0};
+    std::uint32_t seq_parameter_set_id{0};
+    bool entropy_coding_mode_flag{false};
+    bool bottom_field_pic_order_in_frame_present_flag{false};
+    std::int32_t chroma_qp_index_offset{0};
+    bool deblocking_filter_control_present_flag{true};
+};
+
+[[nodiscard]] inline ByteBuffer
+make_baseline_pps_rbsp(const BaselinePpsOptions& options = {}) {
+    BitWriter writer;
+    writer.write_ue(options.pic_parameter_set_id);
+    writer.write_ue(options.seq_parameter_set_id);
+    writer.write_bit(options.entropy_coding_mode_flag);
+    writer.write_bit(options.bottom_field_pic_order_in_frame_present_flag);
+    writer.write_ue(0); // num_slice_groups_minus1
+    writer.write_ue(0); // num_ref_idx_l0_default_active_minus1
+    writer.write_ue(0); // num_ref_idx_l1_default_active_minus1
+    writer.write_bit(false); // weighted_pred_flag
+    writer.write_bits(0, 2); // weighted_bipred_idc
+    writer.write_se(0); // pic_init_qp_minus26
+    writer.write_se(0); // pic_init_qs_minus26
+    writer.write_se(options.chroma_qp_index_offset);
+    writer.write_bit(options.deblocking_filter_control_present_flag);
+    writer.write_bit(false); // constrained_intra_pred_flag
+    writer.write_bit(false); // redundant_pic_cnt_present_flag
+    return writer.finish_rbsp();
+}
+
 [[nodiscard]] inline ByteBuffer rbsp_to_ebsp(ByteView rbsp) {
     ByteBuffer ebsp;
     ebsp.reserve(rbsp.size());

@@ -25,6 +25,7 @@ struct InspectResult {
     std::size_t input_size{0};
     std::vector<InspectedNalUnit> nal_units;
     std::vector<Sps> sequence_parameter_sets;
+    std::vector<Pps> picture_parameter_sets;
 };
 
 [[nodiscard]] std::expected<InspectResult, ParseError>

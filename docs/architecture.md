@@ -55,13 +55,13 @@ include/semi_stream_probe/core/
   nal.hpp            NAL Header 接口
   rbsp.hpp           EBSP 到 RBSP 转换接口
   bit_reader.hpp     位读取与 Exp-Golomb 接口
-  h264_syntax.hpp    SPS 数据模型与 SPS/PPS 解析接口
+  h264_syntax.hpp    SPS/PPS 数据模型与解析接口
 
 include/semi_stream_probe/application/
   inspect.hpp        检查任务和报告编排接口
 
 src/core/
-  Annex-B、NAL、RBSP、位读取与 SPS 已实现；PPS 当前返回未实现错误
+  Annex-B、NAL、RBSP、位读取、SPS 与 PPS 已实现
 
 src/application/
   文件读取、核心解析编排和文本输出
@@ -70,7 +70,7 @@ src/cli/
   可执行程序入口和命令行外壳
 
 tests/
-  无第三方测试框架的编译冒烟、Annex-B、NAL 和应用层测试
+  无第三方测试框架的核心语法、应用层和编译冒烟测试
 ```
 
 ## 4. 数据所有权
@@ -119,5 +119,5 @@ CMake 是构建工具，不属于程序运行时依赖。当前测试不引入 G
 8. RTP Header、Single NAL、STAP-A、FU-A；
 9. 诊断、JSON 和故障注入。
 
-当前已完成上述第 1 至 4 步以及第 5 步中的 SPS，并通过 CLI 接通 SPS 摘要和逐 NAL 输出。
+当前已完成上述第 1 至 5 步，并通过 CLI 接通 SPS/PPS 摘要和逐 NAL 输出。
 

@@ -16,6 +16,10 @@ constexpr std::uint32_t maximum_sps_id = 31;
 constexpr std::uint32_t maximum_bit_depth_minus8 = 6;
 constexpr std::uint32_t maximum_log2_minus4 = 12;
 constexpr std::uint32_t maximum_pic_order_cycle_length = 255;
+constexpr std::uint32_t maximum_pps_id = 255;
+constexpr std::uint32_t maximum_slice_groups_minus1 = 7;
+constexpr std::uint32_t maximum_default_reference_index = 31;
+constexpr std::uint32_t maximum_pic_size_in_map_units_minus1 = 1'048'575;
 
 [[nodiscard]] bool has_extended_profile_fields(std::uint8_t profile_idc) noexcept {
     switch (profile_idc) {
@@ -55,8 +59,89 @@ constexpr std::uint32_t maximum_pic_order_cycle_length = 255;
     };
 }
 
+[[nodiscard]] ParseError with_pps_context(ParseError error,
+                                          std::string_view field) {
+    error.message = "PPS " + std::string(field) + ": " + error.message;
+    return error;
+}
+
+[[nodiscard]] ParseError make_pps_error(const BitReader& reader,
+                                        std::string message) {
+    return ParseError{
+        .code = ParseErrorCode::invalid_pps,
+        .byte_offset = reader.bit_position() / 8,
+        .bit_offset = reader.bit_position(),
+        .message = std::move(message),
+    };
+}
+
+[[nodiscard]] bool bit_at(ByteView bytes, std::size_t bit_position) noexcept {
+    const auto byte_position = bit_position / 8;
+    const auto bit_in_byte = static_cast<unsigned int>(bit_position % 8);
+    return ((bytes[byte_position] >> (7U - bit_in_byte)) & 0x01U) != 0;
+}
+
+// H.264 7.3.2.10: more_rbsp_data() is false only when the remaining bits are
+// exactly rbsp_stop_one_bit followed by zero alignment bits.
+[[nodiscard]] bool more_rbsp_data(const BitReader& reader) noexcept {
+    if (reader.bits_remaining() == 0) {
+        return false;
+    }
+    const auto start = reader.bit_position();
+    if (!bit_at(reader.bytes(), start)) {
+        return true;
+    }
+    const auto end = start + reader.bits_remaining();
+    for (auto position = start + 1; position < end; ++position) {
+        if (bit_at(reader.bytes(), position)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 [[nodiscard]] std::expected<void, ParseError>
-skip_scaling_list(BitReader& reader, std::size_t size) {
+consume_rbsp_trailing_bits(BitReader& reader, std::string_view syntax_name) {
+    auto stop_bit = reader.read_bit();
+    if (!stop_bit) {
+        auto error = std::move(stop_bit.error());
+        error.message = std::string(syntax_name) +
+                        " rbsp_trailing_bits: " + error.message;
+        return std::unexpected(std::move(error));
+    }
+    if (!*stop_bit) {
+        return std::unexpected(make_pps_error(
+            reader, "rbsp_stop_one_bit must be one"));
+    }
+    while (reader.bits_remaining() != 0) {
+        auto alignment_bit = reader.read_bit();
+        if (!alignment_bit) {
+            return std::unexpected(std::move(alignment_bit.error()));
+        }
+        if (*alignment_bit) {
+            return std::unexpected(make_pps_error(
+                reader, "rbsp_alignment_zero_bit must be zero"));
+        }
+    }
+    return {};
+}
+
+[[nodiscard]] std::size_t slice_group_id_bit_count(
+    std::uint32_t num_slice_groups_minus1) noexcept {
+    const auto group_count = num_slice_groups_minus1 + 1U;
+    std::size_t count = 0;
+    std::uint32_t maximum_id = group_count - 1U;
+    do {
+        ++count;
+        maximum_id >>= 1U;
+    } while (maximum_id != 0);
+    return count;
+}
+
+[[nodiscard]] std::expected<void, ParseError>
+skip_scaling_list(BitReader& reader,
+                  std::size_t size,
+                  std::string_view syntax_name) {
     std::int32_t last_scale = 8;
     std::int32_t next_scale = 8;
 
@@ -64,8 +149,10 @@ skip_scaling_list(BitReader& reader, std::size_t size) {
         if (next_scale != 0) {
             auto delta_scale = reader.read_se();
             if (!delta_scale) {
-                return std::unexpected(with_sps_context(
-                    std::move(delta_scale.error()), "scaling_list delta_scale"));
+                auto error = std::move(delta_scale.error());
+                error.message = std::string(syntax_name) +
+                                " scaling_list delta_scale: " + error.message;
+                return std::unexpected(std::move(error));
             }
 
             auto value = (static_cast<std::int64_t>(last_scale) +
@@ -151,7 +238,8 @@ parse_extended_profile_fields(BitReader& reader, Sps& sps) {
                 std::move(present.error()), "seq_scaling_list_present_flag"));
         }
         if (*present) {
-            auto skipped = skip_scaling_list(reader, index < 6 ? 16 : 64);
+            auto skipped = skip_scaling_list(reader, index < 6 ? 16 : 64,
+                                             "SPS");
             if (!skipped) {
                 return std::unexpected(std::move(skipped.error()));
             }
@@ -449,8 +537,298 @@ std::expected<Sps, ParseError> parse_sps(ByteView rbsp) {
     return sps;
 }
 
-std::expected<Pps, ParseError> parse_pps(ByteView /*rbsp*/) {
-    return std::unexpected(make_not_implemented_error("PPS parser"));
+std::expected<Pps, ParseError> parse_pps(ByteView rbsp,
+                                        std::uint32_t chroma_format_idc) {
+    if (chroma_format_idc > 3) {
+        return std::unexpected(ParseError{
+            .code = ParseErrorCode::invalid_pps,
+            .message = "PPS referenced SPS chroma_format_idc must be in the range 0..3",
+        });
+    }
+
+    BitReader reader(rbsp);
+    Pps pps;
+
+    auto read_ue = [&reader](std::string_view field)
+        -> std::expected<std::uint32_t, ParseError> {
+        auto value = reader.read_ue();
+        if (!value) {
+            return std::unexpected(with_pps_context(std::move(value.error()), field));
+        }
+        return *value;
+    };
+    auto read_se = [&reader](std::string_view field)
+        -> std::expected<std::int32_t, ParseError> {
+        auto value = reader.read_se();
+        if (!value) {
+            return std::unexpected(with_pps_context(std::move(value.error()), field));
+        }
+        return *value;
+    };
+    auto read_flag = [&reader](std::string_view field)
+        -> std::expected<bool, ParseError> {
+        auto value = reader.read_bit();
+        if (!value) {
+            return std::unexpected(with_pps_context(std::move(value.error()), field));
+        }
+        return *value;
+    };
+
+    auto pps_id = read_ue("pic_parameter_set_id");
+    if (!pps_id) {
+        return std::unexpected(std::move(pps_id.error()));
+    }
+    if (*pps_id > maximum_pps_id) {
+        return std::unexpected(make_pps_error(
+            reader, "pic_parameter_set_id must be in the range 0..255"));
+    }
+    pps.pic_parameter_set_id = *pps_id;
+
+    auto sps_id = read_ue("seq_parameter_set_id");
+    if (!sps_id) {
+        return std::unexpected(std::move(sps_id.error()));
+    }
+    if (*sps_id > maximum_sps_id) {
+        return std::unexpected(make_pps_error(
+            reader, "seq_parameter_set_id must be in the range 0..31"));
+    }
+    pps.seq_parameter_set_id = *sps_id;
+
+    auto entropy_coding = read_flag("entropy_coding_mode_flag");
+    if (!entropy_coding) {
+        return std::unexpected(std::move(entropy_coding.error()));
+    }
+    pps.entropy_coding_mode_flag = *entropy_coding;
+
+    auto bottom_field =
+        read_flag("bottom_field_pic_order_in_frame_present_flag");
+    if (!bottom_field) {
+        return std::unexpected(std::move(bottom_field.error()));
+    }
+    pps.bottom_field_pic_order_in_frame_present_flag = *bottom_field;
+
+    auto slice_groups = read_ue("num_slice_groups_minus1");
+    if (!slice_groups) {
+        return std::unexpected(std::move(slice_groups.error()));
+    }
+    if (*slice_groups > maximum_slice_groups_minus1) {
+        return std::unexpected(make_pps_error(
+            reader, "num_slice_groups_minus1 must be in the range 0..7"));
+    }
+    pps.num_slice_groups_minus1 = *slice_groups;
+
+    if (pps.num_slice_groups_minus1 > 0) {
+        auto map_type = read_ue("slice_group_map_type");
+        if (!map_type) {
+            return std::unexpected(std::move(map_type.error()));
+        }
+        if (*map_type > 6) {
+            return std::unexpected(make_pps_error(
+                reader, "slice_group_map_type must be in the range 0..6"));
+        }
+        pps.slice_group_map_type = *map_type;
+
+        if (pps.slice_group_map_type == 0) {
+            pps.run_length_minus1.reserve(
+                static_cast<std::size_t>(pps.num_slice_groups_minus1) + 1U);
+            for (std::uint32_t index = 0;
+                 index <= pps.num_slice_groups_minus1; ++index) {
+                auto value = read_ue("run_length_minus1");
+                if (!value) {
+                    return std::unexpected(std::move(value.error()));
+                }
+                pps.run_length_minus1.push_back(*value);
+            }
+        } else if (pps.slice_group_map_type == 2) {
+            pps.top_left.reserve(pps.num_slice_groups_minus1);
+            pps.bottom_right.reserve(pps.num_slice_groups_minus1);
+            for (std::uint32_t index = 0;
+                 index < pps.num_slice_groups_minus1; ++index) {
+                auto top_left = read_ue("top_left");
+                if (!top_left) {
+                    return std::unexpected(std::move(top_left.error()));
+                }
+                auto bottom_right = read_ue("bottom_right");
+                if (!bottom_right) {
+                    return std::unexpected(std::move(bottom_right.error()));
+                }
+                if (*top_left > *bottom_right) {
+                    return std::unexpected(make_pps_error(
+                        reader, "top_left must not exceed bottom_right"));
+                }
+                pps.top_left.push_back(*top_left);
+                pps.bottom_right.push_back(*bottom_right);
+            }
+        } else if (pps.slice_group_map_type >= 3 &&
+                   pps.slice_group_map_type <= 5) {
+            auto direction = read_flag("slice_group_change_direction_flag");
+            if (!direction) {
+                return std::unexpected(std::move(direction.error()));
+            }
+            pps.slice_group_change_direction_flag = *direction;
+            auto rate = read_ue("slice_group_change_rate_minus1");
+            if (!rate) {
+                return std::unexpected(std::move(rate.error()));
+            }
+            pps.slice_group_change_rate_minus1 = *rate;
+        } else if (pps.slice_group_map_type == 6) {
+            auto map_size = read_ue("pic_size_in_map_units_minus1");
+            if (!map_size) {
+                return std::unexpected(std::move(map_size.error()));
+            }
+            if (*map_size > maximum_pic_size_in_map_units_minus1) {
+                return std::unexpected(make_pps_error(
+                    reader, "explicit slice group map exceeds the supported limit"));
+            }
+            pps.pic_size_in_map_units_minus1 = *map_size;
+            const auto id_bits =
+                slice_group_id_bit_count(pps.num_slice_groups_minus1);
+            pps.slice_group_id.reserve(static_cast<std::size_t>(*map_size) + 1U);
+            for (std::uint32_t index = 0; index <= *map_size; ++index) {
+                auto id = reader.read_bits(id_bits);
+                if (!id) {
+                    return std::unexpected(with_pps_context(
+                        std::move(id.error()), "slice_group_id"));
+                }
+                if (*id > pps.num_slice_groups_minus1) {
+                    return std::unexpected(make_pps_error(
+                        reader, "slice_group_id references a nonexistent group"));
+                }
+                pps.slice_group_id.push_back(static_cast<std::uint8_t>(*id));
+            }
+        }
+    }
+
+    auto ref_l0 = read_ue("num_ref_idx_l0_default_active_minus1");
+    if (!ref_l0) {
+        return std::unexpected(std::move(ref_l0.error()));
+    }
+    auto ref_l1 = read_ue("num_ref_idx_l1_default_active_minus1");
+    if (!ref_l1) {
+        return std::unexpected(std::move(ref_l1.error()));
+    }
+    if (*ref_l0 > maximum_default_reference_index ||
+        *ref_l1 > maximum_default_reference_index) {
+        return std::unexpected(make_pps_error(
+            reader, "default active reference index must be in the range 0..31"));
+    }
+    pps.num_ref_idx_l0_default_active_minus1 = *ref_l0;
+    pps.num_ref_idx_l1_default_active_minus1 = *ref_l1;
+
+    auto weighted_pred = read_flag("weighted_pred_flag");
+    if (!weighted_pred) {
+        return std::unexpected(std::move(weighted_pred.error()));
+    }
+    pps.weighted_pred_flag = *weighted_pred;
+    auto weighted_bipred = reader.read_bits(2);
+    if (!weighted_bipred) {
+        return std::unexpected(with_pps_context(
+            std::move(weighted_bipred.error()), "weighted_bipred_idc"));
+    }
+    if (*weighted_bipred > 2) {
+        return std::unexpected(make_pps_error(
+            reader, "weighted_bipred_idc must be in the range 0..2"));
+    }
+    pps.weighted_bipred_idc = static_cast<std::uint8_t>(*weighted_bipred);
+
+    auto initial_qp = read_se("pic_init_qp_minus26");
+    if (!initial_qp) {
+        return std::unexpected(std::move(initial_qp.error()));
+    }
+    if (*initial_qp < -62 || *initial_qp > 25) {
+        return std::unexpected(make_pps_error(
+            reader, "pic_init_qp_minus26 is outside the supported H.264 range"));
+    }
+    pps.pic_init_qp_minus26 = *initial_qp;
+
+    auto initial_qs = read_se("pic_init_qs_minus26");
+    if (!initial_qs) {
+        return std::unexpected(std::move(initial_qs.error()));
+    }
+    if (*initial_qs < -26 || *initial_qs > 25) {
+        return std::unexpected(make_pps_error(
+            reader, "pic_init_qs_minus26 must be in the range -26..25"));
+    }
+    pps.pic_init_qs_minus26 = *initial_qs;
+
+    auto chroma_offset = read_se("chroma_qp_index_offset");
+    if (!chroma_offset) {
+        return std::unexpected(std::move(chroma_offset.error()));
+    }
+    if (*chroma_offset < -12 || *chroma_offset > 12) {
+        return std::unexpected(make_pps_error(
+            reader, "chroma_qp_index_offset must be in the range -12..12"));
+    }
+    pps.chroma_qp_index_offset = *chroma_offset;
+
+    auto deblocking = read_flag("deblocking_filter_control_present_flag");
+    if (!deblocking) {
+        return std::unexpected(std::move(deblocking.error()));
+    }
+    pps.deblocking_filter_control_present_flag = *deblocking;
+    auto constrained = read_flag("constrained_intra_pred_flag");
+    if (!constrained) {
+        return std::unexpected(std::move(constrained.error()));
+    }
+    pps.constrained_intra_pred_flag = *constrained;
+    auto redundant = read_flag("redundant_pic_cnt_present_flag");
+    if (!redundant) {
+        return std::unexpected(std::move(redundant.error()));
+    }
+    pps.redundant_pic_cnt_present_flag = *redundant;
+
+    if (more_rbsp_data(reader)) {
+        pps.has_extension = true;
+        auto transform = read_flag("transform_8x8_mode_flag");
+        if (!transform) {
+            return std::unexpected(std::move(transform.error()));
+        }
+        pps.transform_8x8_mode_flag = *transform;
+        auto scaling_matrix = read_flag("pic_scaling_matrix_present_flag");
+        if (!scaling_matrix) {
+            return std::unexpected(std::move(scaling_matrix.error()));
+        }
+        pps.pic_scaling_matrix_present_flag = *scaling_matrix;
+        if (pps.pic_scaling_matrix_present_flag) {
+            const std::size_t list_count =
+                6U + (pps.transform_8x8_mode_flag
+                          ? (chroma_format_idc == 3 ? 6U : 2U)
+                          : 0U);
+            pps.pic_scaling_list_present_flags.reserve(list_count);
+            for (std::size_t index = 0; index < list_count; ++index) {
+                auto present = read_flag("pic_scaling_list_present_flag");
+                if (!present) {
+                    return std::unexpected(std::move(present.error()));
+                }
+                pps.pic_scaling_list_present_flags.push_back(*present);
+                if (*present) {
+                    auto skipped = skip_scaling_list(
+                        reader, index < 6 ? 16 : 64, "PPS");
+                    if (!skipped) {
+                        return std::unexpected(std::move(skipped.error()));
+                    }
+                }
+            }
+        }
+
+        auto second_offset = read_se("second_chroma_qp_index_offset");
+        if (!second_offset) {
+            return std::unexpected(std::move(second_offset.error()));
+        }
+        if (*second_offset < -12 || *second_offset > 12) {
+            return std::unexpected(make_pps_error(
+                reader, "second_chroma_qp_index_offset must be in the range -12..12"));
+        }
+        pps.second_chroma_qp_index_offset = *second_offset;
+    } else {
+        pps.second_chroma_qp_index_offset = pps.chroma_qp_index_offset;
+    }
+
+    auto trailing = consume_rbsp_trailing_bits(reader, "PPS");
+    if (!trailing) {
+        return std::unexpected(std::move(trailing.error()));
+    }
+    return pps;
 }
 
 const char* h264_profile_name(std::uint8_t profile_idc) noexcept {

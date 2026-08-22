@@ -16,6 +16,7 @@ enum class ParseErrorCode {
     unexpected_end_of_data,
     exp_golomb_overflow,
     invalid_sps,
+    invalid_pps,
     io_error,
 };
 

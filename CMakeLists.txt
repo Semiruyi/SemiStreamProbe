@@ -171,6 +171,21 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
         COMMAND semi_stream_probe_h264_syntax_tests
     )
 
+    add_executable(semi_stream_probe_pps_tests
+        tests/pps_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_pps_tests
+        PRIVATE
+            semi_stream_probe_core
+    )
+    target_compile_features(semi_stream_probe_pps_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_pps_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_pps_tests)
+    add_test(
+        NAME semi_stream_probe_pps_tests
+        COMMAND semi_stream_probe_pps_tests
+    )
+
     add_executable(semi_stream_probe_application_tests
         tests/application_test.cpp
     )

@@ -1,5 +1,6 @@
 #include "semi_stream_probe/application/inspect.hpp"
 
+#include "semi_stream_probe/core/bit_reader.hpp"
 #include "semi_stream_probe/core/rbsp.hpp"
 #include "semi_stream_probe/core/types.hpp"
 
@@ -41,9 +42,9 @@ namespace {
     return ebsp.size();
 }
 
-[[nodiscard]] ParseError translate_sps_error(ParseError error,
-                                             const NalUnitRef& location,
-                                             ByteView ebsp) {
+[[nodiscard]] ParseError translate_rbsp_error(ParseError error,
+                                              const NalUnitRef& location,
+                                              ByteView ebsp) {
     constexpr std::size_t nal_header_size = 1;
     constexpr std::size_t bits_per_byte = 8;
 
@@ -106,6 +107,7 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
         .input_size = bytes.size(),
         .nal_units = {},
         .sequence_parameter_sets = {},
+        .picture_parameter_sets = {},
     };
     result.nal_units.reserve(locations->size());
     for (const auto& location : *locations) {
@@ -136,11 +138,51 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
 
             auto sps = parse_sps(*rbsp);
             if (!sps) {
-                return std::unexpected(translate_sps_error(
+                return std::unexpected(translate_rbsp_error(
                     std::move(sps.error()), location, ebsp));
             }
             result.sequence_parameter_sets.push_back(*sps);
         }
+    }
+
+    // Parse PPS units after collecting every SPS so a PPS extension uses the
+    // referenced SPS chroma format even when parameter sets arrive out of order.
+    for (const auto& unit : result.nal_units) {
+        if (unit.header.nal_unit_type != 8) {
+            continue;
+        }
+        constexpr std::size_t nal_header_size = 1;
+        const auto& location = unit.location;
+        const ByteView payload(bytes.data() + location.payload_offset,
+                               location.payload_size);
+        const auto ebsp = payload.subspan(nal_header_size);
+        auto rbsp = ebsp_to_rbsp(ebsp);
+        if (!rbsp) {
+            auto error = std::move(rbsp.error());
+            error.byte_offset += location.payload_offset + nal_header_size;
+            error.nal_index = location.index;
+            return std::unexpected(std::move(error));
+        }
+
+        std::uint32_t chroma_format_idc = 1;
+        BitReader id_reader(*rbsp);
+        const auto ignored_pps_id = id_reader.read_ue();
+        const auto referenced_sps_id = id_reader.read_ue();
+        if (ignored_pps_id && referenced_sps_id) {
+            for (const auto& known_sps : result.sequence_parameter_sets) {
+                if (known_sps.seq_parameter_set_id == *referenced_sps_id) {
+                    chroma_format_idc = known_sps.chroma_format_idc;
+                    break;
+                }
+            }
+        }
+
+        auto pps = parse_pps(*rbsp, chroma_format_idc);
+        if (!pps) {
+            return std::unexpected(translate_rbsp_error(
+                std::move(pps.error()), location, ebsp));
+        }
+        result.picture_parameter_sets.push_back(*pps);
     }
 
     return result;
@@ -157,7 +199,12 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
                << "SPS id: " << sps.seq_parameter_set_id << '\n';
     }
     output << "Input bytes: " << result.input_size << '\n'
-           << "NAL units: " << result.nal_units.size() << '\n';
+           << "NAL units: " << result.nal_units.size() << '\n'
+           << "PPS: " << result.picture_parameter_sets.size() << '\n';
+    for (const auto& pps : result.picture_parameter_sets) {
+        output << "PPS id: " << pps.pic_parameter_set_id
+               << " (SPS " << pps.seq_parameter_set_id << ")\n";
+    }
 
     if (!options.nal_list) {
         return output.str();
