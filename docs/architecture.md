@@ -53,6 +53,7 @@ include/semi_stream_probe/core/
   parse_error.hpp    结构化解析错误
   annex_b.hpp        Annex-B 扫描器接口
   nal.hpp            NAL Header 接口
+  rbsp.hpp           EBSP 到 RBSP 转换接口
   bit_reader.hpp     位读取器占位接口
   h264_syntax.hpp    SPS/PPS 接口占位
 
@@ -60,7 +61,7 @@ include/semi_stream_probe/application/
   inspect.hpp        检查任务和报告编排接口
 
 src/core/
-  Annex-B 与 NAL 已实现；SPS/PPS 当前返回未实现错误
+  Annex-B、NAL 与 EBSP 到 RBSP 已实现；SPS/PPS 当前返回未实现错误
 
 src/application/
   文件读取、核心解析编排和文本输出
