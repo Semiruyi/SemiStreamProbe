@@ -242,7 +242,7 @@ RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输�
 ### Milestone 2：参数集
 
 - [x] EBSP 到 RBSP 转换
-- [ ] 位读取与有符号/无符号 Exp-Golomb
+- [x] 位读取与有符号/无符号 Exp-Golomb
 - [ ] SPS/PPS 解析
 - [ ] 分辨率、Profile、Level、色度格式和位深
 - [ ] cropping 与基础 VUI 字段

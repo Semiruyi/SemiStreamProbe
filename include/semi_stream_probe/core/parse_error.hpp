@@ -12,6 +12,9 @@ enum class ParseErrorCode {
     start_code_not_found,
     empty_nal_unit,
     forbidden_zero_bit_set,
+    invalid_bit_count,
+    unexpected_end_of_data,
+    exp_golomb_overflow,
     io_error,
 };
 

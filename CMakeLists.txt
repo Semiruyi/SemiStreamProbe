@@ -30,6 +30,7 @@ endfunction()
 
 add_library(semi_stream_probe_core STATIC
     src/core/annex_b.cpp
+    src/core/bit_reader.cpp
     src/core/h264_syntax.cpp
     src/core/nal.cpp
     src/core/parse_error.cpp
@@ -138,6 +139,21 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
     add_test(
         NAME semi_stream_probe_rbsp_tests
         COMMAND semi_stream_probe_rbsp_tests
+    )
+
+    add_executable(semi_stream_probe_bit_reader_tests
+        tests/bit_reader_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_bit_reader_tests
+        PRIVATE
+            semi_stream_probe_core
+    )
+    target_compile_features(semi_stream_probe_bit_reader_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_bit_reader_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_bit_reader_tests)
+    add_test(
+        NAME semi_stream_probe_bit_reader_tests
+        COMMAND semi_stream_probe_bit_reader_tests
     )
 
     add_executable(semi_stream_probe_application_tests

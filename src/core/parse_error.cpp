@@ -14,6 +14,12 @@ std::string_view to_string(ParseErrorCode code) noexcept {
         return "empty_nal_unit";
     case ParseErrorCode::forbidden_zero_bit_set:
         return "forbidden_zero_bit_set";
+    case ParseErrorCode::invalid_bit_count:
+        return "invalid_bit_count";
+    case ParseErrorCode::unexpected_end_of_data:
+        return "unexpected_end_of_data";
+    case ParseErrorCode::exp_golomb_overflow:
+        return "exp_golomb_overflow";
     case ParseErrorCode::io_error:
         return "io_error";
     }
