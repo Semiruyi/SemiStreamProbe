@@ -32,6 +32,19 @@ int main() {
     const auto sps_ebsp = semi_stream_probe::test::rbsp_to_ebsp(sps_rbsp);
     const auto pps_rbsp = semi_stream_probe::test::make_baseline_pps_rbsp();
     const auto pps_ebsp = semi_stream_probe::test::rbsp_to_ebsp(pps_rbsp);
+    semi_stream_probe::test::BitWriter slice_writer;
+    slice_writer.write_ue(0);      // first_mb_in_slice
+    slice_writer.write_ue(7);      // I slice, all slices same type
+    slice_writer.write_ue(0);      // pic_parameter_set_id
+    slice_writer.write_bits(0, 4); // frame_num
+    slice_writer.write_ue(0);      // idr_pic_id
+    slice_writer.write_bits(0, 4); // pic_order_cnt_lsb
+    slice_writer.write_bit(false); // no_output_of_prior_pics_flag
+    slice_writer.write_bit(false); // long_term_reference_flag
+    slice_writer.write_se(0);      // slice_qp_delta
+    slice_writer.write_ue(1);      // disable_deblocking_filter_idc
+    const auto slice_ebsp = semi_stream_probe::test::rbsp_to_ebsp(
+        slice_writer.finish_rbsp());
 
     // Put PPS before SPS to verify inspect resolves parameter sets in two passes.
     semi_stream_probe::ByteBuffer bytes{
@@ -47,6 +60,7 @@ int main() {
         0x00, 0x00, 0x01, 0x65,
     };
     bytes.insert(bytes.end(), idr.begin(), idr.end());
+    bytes.insert(bytes.end(), slice_ebsp.begin(), slice_ebsp.end());
 
     {
         std::ofstream sample(sample_path, std::ios::binary);
@@ -67,6 +81,14 @@ int main() {
         check(result->nal_units.size() == 3, "NAL unit count");
         check(result->sequence_parameter_sets.size() == 1, "SPS count");
         check(result->picture_parameter_sets.size() == 1, "PPS count");
+        check(result->slices.size() == 1, "Slice count");
+        if (!result->slices.empty()) {
+            check(result->slices.front().header.slice_type ==
+                      semi_stream_probe::SliceType::i,
+                  "Slice type");
+            check(result->slices.front().header.frame_num == 0,
+                  "Slice frame number");
+        }
         if (!result->picture_parameter_sets.empty()) {
             check(result->picture_parameter_sets.front().pic_parameter_set_id == 0,
                   "PPS id");
@@ -86,11 +108,14 @@ int main() {
               "summary profile");
         check(text.find("Level: 4.0") != std::string::npos, "summary level");
         check(text.find("PPS: 1") != std::string::npos, "PPS summary count");
+        check(text.find("Slices: 1") != std::string::npos,
+              "Slice summary count");
         check(text.find("PPS id: 0 (SPS 0)") != std::string::npos,
               "PPS summary id");
         check(text.find("SPS") != std::string::npos, "SPS list entry");
         check(text.find("PPS") != std::string::npos, "PPS list entry");
         check(text.find("IDR_SLICE") != std::string::npos, "IDR list entry");
+        check(text.find("SLICE") != std::string::npos, "Slice list column");
     }
 
     const auto missing = semi_stream_probe::application::inspect_file(

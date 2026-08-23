@@ -272,6 +272,8 @@ parse_picture_order_fields(BitReader& reader, Sps& sps) {
             return std::unexpected(make_sps_error(
                 reader, "log2_max_pic_order_cnt_lsb_minus4 exceeds 12"));
         }
+        sps.log2_max_pic_order_cnt_lsb_minus4 =
+            *log2_max_pic_order_cnt_lsb_minus4;
         return {};
     }
 
@@ -285,6 +287,8 @@ parse_picture_order_fields(BitReader& reader, Sps& sps) {
             std::move(delta_pic_order_always_zero_flag.error()),
             "delta_pic_order_always_zero_flag"));
     }
+    sps.delta_pic_order_always_zero_flag =
+        *delta_pic_order_always_zero_flag;
     auto offset_for_non_ref_pic = reader.read_se();
     if (!offset_for_non_ref_pic) {
         return std::unexpected(with_sps_context(
@@ -545,7 +549,6 @@ std::expected<Pps, ParseError> parse_pps(ByteView rbsp,
             .message = "PPS referenced SPS chroma_format_idc must be in the range 0..3",
         });
     }
-
     BitReader reader(rbsp);
     Pps pps;
 

@@ -92,6 +92,8 @@ void test_high_profile_scaling_list_and_poc_type_one() {
     check(result->bit_depth_luma == 10 && result->bit_depth_chroma == 10,
           "High profile bit depths");
     check(result->pic_order_cnt_type == 1, "High profile POC type");
+    check(result->delta_pic_order_always_zero_flag,
+          "High profile POC delta always zero flag");
     check(result->max_num_ref_frames == 4, "High profile reference frame count");
     check(result->width == 1280 && result->height == 720,
           "High profile dimensions");

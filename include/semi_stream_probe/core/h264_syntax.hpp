@@ -24,6 +24,8 @@ struct Sps {
 
     std::uint32_t log2_max_frame_num_minus4{0};
     std::uint32_t pic_order_cnt_type{0};
+    std::uint32_t log2_max_pic_order_cnt_lsb_minus4{0};
+    bool delta_pic_order_always_zero_flag{false};
     std::uint32_t max_num_ref_frames{0};
     bool frame_mbs_only_flag{true};
 

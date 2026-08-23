@@ -1,7 +1,9 @@
 #include "semi_stream_probe/application/inspect.hpp"
 
 #include "semi_stream_probe/core/bit_reader.hpp"
+#include "semi_stream_probe/core/parameter_sets.hpp"
 #include "semi_stream_probe/core/rbsp.hpp"
+#include "semi_stream_probe/core/slice.hpp"
 #include "semi_stream_probe/core/types.hpp"
 
 #include <fstream>
@@ -108,7 +110,9 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
         .nal_units = {},
         .sequence_parameter_sets = {},
         .picture_parameter_sets = {},
+        .slices = {},
     };
+    ParameterSetRegistry parameter_sets;
     result.nal_units.reserve(locations->size());
     for (const auto& location : *locations) {
         const ByteView payload(bytes.data() + location.payload_offset,
@@ -142,6 +146,7 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
                     std::move(sps.error()), location, ebsp));
             }
             result.sequence_parameter_sets.push_back(*sps);
+            parameter_sets.store(*sps);
         }
     }
 
@@ -169,12 +174,18 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
         const auto ignored_pps_id = id_reader.read_ue();
         const auto referenced_sps_id = id_reader.read_ue();
         if (ignored_pps_id && referenced_sps_id) {
-            for (const auto& known_sps : result.sequence_parameter_sets) {
-                if (known_sps.seq_parameter_set_id == *referenced_sps_id) {
-                    chroma_format_idc = known_sps.chroma_format_idc;
-                    break;
-                }
+            const auto* referenced_sps =
+                parameter_sets.find_sps(*referenced_sps_id);
+            if (referenced_sps == nullptr) {
+                return std::unexpected(translate_rbsp_error(ParseError{
+                    .code = ParseErrorCode::parameter_set_not_found,
+                    .byte_offset = id_reader.bit_position() / 8,
+                    .bit_offset = id_reader.bit_position(),
+                    .message = "PPS references missing SPS " +
+                               std::to_string(*referenced_sps_id),
+                }, location, ebsp));
             }
+            chroma_format_idc = referenced_sps->chroma_format_idc;
         }
 
         auto pps = parse_pps(*rbsp, chroma_format_idc);
@@ -183,6 +194,34 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
                 std::move(pps.error()), location, ebsp));
         }
         result.picture_parameter_sets.push_back(*pps);
+        parameter_sets.store(*pps);
+    }
+
+    for (const auto& unit : result.nal_units) {
+        if (unit.header.nal_unit_type != 1 && unit.header.nal_unit_type != 5) {
+            continue;
+        }
+        constexpr std::size_t nal_header_size = 1;
+        const auto& location = unit.location;
+        const ByteView payload(bytes.data() + location.payload_offset,
+                               location.payload_size);
+        const auto ebsp = payload.subspan(nal_header_size);
+        auto rbsp = ebsp_to_rbsp(ebsp);
+        if (!rbsp) {
+            auto error = std::move(rbsp.error());
+            error.byte_offset += location.payload_offset + nal_header_size;
+            error.nal_index = location.index;
+            return std::unexpected(std::move(error));
+        }
+        auto slice = parse_slice_header(*rbsp, unit.header, parameter_sets);
+        if (!slice) {
+            return std::unexpected(translate_rbsp_error(
+                std::move(slice.error()), location, ebsp));
+        }
+        result.slices.push_back(InspectedSlice{
+            .nal_index = location.index,
+            .header = *slice,
+        });
     }
 
     return result;
@@ -200,6 +239,7 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
     }
     output << "Input bytes: " << result.input_size << '\n'
            << "NAL units: " << result.nal_units.size() << '\n'
+           << "Slices: " << result.slices.size() << '\n'
            << "PPS: " << result.picture_parameter_sets.size() << '\n';
     for (const auto& pps : result.picture_parameter_sets) {
         output << "PPS id: " << pps.pic_parameter_set_id
@@ -212,7 +252,8 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
 
     output << '\n'
            << std::left << std::setw(12) << "OFFSET" << std::setw(10) << "SIZE"
-           << std::setw(16) << "TYPE" << "REF\n";
+           << std::setw(16) << "TYPE" << std::setw(6) << "REF"
+           << std::setw(8) << "SLICE" << "FRAME_NUM\n";
     for (const auto& unit : result.nal_units) {
         std::ostringstream offset;
         offset << "0x" << std::uppercase << std::hex << std::setw(8)
@@ -220,7 +261,22 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
         output << std::setfill(' ') << std::left << std::setw(12) << offset.str()
                << std::setw(10) << unit.location.payload_size << std::setw(16)
                << nal_unit_type_name(unit.header.nal_unit_type)
-               << static_cast<unsigned int>(unit.header.nal_ref_idc) << '\n';
+               << std::setw(6)
+               << static_cast<unsigned int>(unit.header.nal_ref_idc);
+        const InspectedSlice* inspected_slice = nullptr;
+        for (const auto& slice : result.slices) {
+            if (slice.nal_index == unit.location.index) {
+                inspected_slice = &slice;
+                break;
+            }
+        }
+        if (inspected_slice == nullptr) {
+            output << std::setw(8) << "-" << "-\n";
+        } else {
+            output << std::setw(8)
+                   << slice_type_name(inspected_slice->header.slice_type)
+                   << inspected_slice->header.frame_num << '\n';
+        }
     }
     return output.str();
 }

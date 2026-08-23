@@ -1,7 +1,7 @@
 # SemiStreamProbe 架构骨架
 
-当前版本已接通 Annex-B 文件读取、NAL 边界识别、NAL Header 解析和逐 NAL 文本输出。
-后续解析逻辑继续按学习顺序逐个模块补充，并通过测试样本验证。
+当前版本已接通 Annex-B 文件读取、NAL 边界识别、SPS/PPS、完整基础 Slice Header 和逐 NAL
+文本输出。后续解析逻辑继续按学习顺序逐个模块补充，并通过测试样本验证。
 
 ## 1. 目标
 
@@ -11,7 +11,7 @@ SemiStreamProbe 是一个同步、确定性、无第三方运行时依赖的 H.2
 - Annex-B 文件输入；
 - NAL Unit 边界识别；
 - NAL Header 解析；
-- 后续逐步增加 PPS、Slice 和 RTP 能力。
+- 后续逐步增加 Access Unit、GOP 和 RTP 能力。
 
 它不承担播放器职责，也不依赖 SemiPlayer 的运行时模块。
 
@@ -56,12 +56,14 @@ include/semi_stream_probe/core/
   rbsp.hpp           EBSP 到 RBSP 转换接口
   bit_reader.hpp     位读取与 Exp-Golomb 接口
   h264_syntax.hpp    SPS/PPS 数据模型与解析接口
+  parameter_sets.hpp SPS/PPS 注册与 ID 查询
+  slice.hpp          基础 Slice Header、参考管理和预测控制解析接口
 
 include/semi_stream_probe/application/
   inspect.hpp        检查任务和报告编排接口
 
 src/core/
-  Annex-B、NAL、RBSP、位读取、SPS 与 PPS 已实现
+  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册与 Slice 已实现
 
 src/application/
   文件读取、核心解析编排和文本输出
@@ -119,5 +121,6 @@ CMake 是构建工具，不属于程序运行时依赖。当前测试不引入 G
 8. RTP Header、Single NAL、STAP-A、FU-A；
 9. 诊断、JSON 和故障注入。
 
-当前已完成上述第 1 至 5 步，并通过 CLI 接通 SPS/PPS 摘要和逐 NAL 输出。
+当前已完成上述第 1 至 5 步以及第 6 步中的基础 Slice Header（不含宏块数据），并通过 CLI
+接通 SPS/PPS/Slice 摘要和逐 NAL 输出。Access Unit 组装将在下一阶段实现。
 

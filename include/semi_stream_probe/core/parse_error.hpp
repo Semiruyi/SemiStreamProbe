@@ -17,6 +17,8 @@ enum class ParseErrorCode {
     exp_golomb_overflow,
     invalid_sps,
     invalid_pps,
+    invalid_slice,
+    parameter_set_not_found,
     io_error,
 };
 
