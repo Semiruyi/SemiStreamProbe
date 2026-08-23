@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -19,6 +21,7 @@ enum class ParseErrorCode {
     invalid_pps,
     invalid_slice,
     invalid_rtp,
+    invalid_h264_rtp_payload,
     parameter_set_not_found,
     io_error,
 };
@@ -28,6 +31,7 @@ struct ParseError {
     std::size_t byte_offset{0};
     std::size_t bit_offset{0};
     std::size_t nal_index{0};
+    std::optional<std::uint16_t> rtp_sequence_number{std::nullopt};
     std::string message;
 };
 

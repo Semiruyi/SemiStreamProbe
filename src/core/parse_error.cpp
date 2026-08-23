@@ -28,6 +28,8 @@ std::string_view to_string(ParseErrorCode code) noexcept {
         return "invalid_slice";
     case ParseErrorCode::invalid_rtp:
         return "invalid_rtp";
+    case ParseErrorCode::invalid_h264_rtp_payload:
+        return "invalid_h264_rtp_payload";
     case ParseErrorCode::parameter_set_not_found:
         return "parameter_set_not_found";
     case ParseErrorCode::io_error:

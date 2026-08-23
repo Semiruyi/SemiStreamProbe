@@ -59,6 +59,7 @@ include/semi_stream_probe/core/
   bit_reader.hpp     位读取与 Exp-Golomb 接口
   access_unit.hpp    编码图像边界判断与 Access Unit 组装接口
   gop.hpp            AU Slice 类型分类与 IDR 分隔的 GOP 统计接口
+  h264_rtp.hpp       RFC 6184 payload 分类与 Single NAL Unit 解包接口
   h264_syntax.hpp    SPS/PPS 数据模型与解析接口
   parameter_sets.hpp SPS/PPS 注册与 ID 查询
   rtp.hpp            RTP 固定头、CSRC、扩展头与 payload 边界解析接口
@@ -68,7 +69,7 @@ include/semi_stream_probe/application/
   inspect.hpp        检查任务和报告编排接口
 
 src/core/
-  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice、Access Unit、GOP 统计与 RTP 包头解析已实现
+  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice、Access Unit、GOP 统计、RTP 包头与 Single NAL Unit 解包已实现
 
 src/application/
   文件读取、核心解析编排和文本输出
@@ -98,6 +99,7 @@ RTP FU-A 重组以后，重组器会拥有自己的 NAL 缓冲区，但仍以 `B
 - 字节偏移；
 - 比特偏移；
 - NAL 索引；
+- RTP 序列号；
 - 面向用户的简短信息。
 
 未来的批量检查还会增加 `Diagnostic`，用于记录可以跳过并继续分析的警告或错误。解析
@@ -131,5 +133,5 @@ CMake 是构建工具，不属于程序运行时依赖。当前测试不引入 G
 
 当前已完成上述第 1 至 7 步（Slice 不含宏块数据），并通过 CLI 接通
 SPS/PPS/Slice/Access Unit 摘要、GOP 统计和逐 NAL 输出。RTP 阶段已经完成固定头、
-CSRC、扩展头和 padding 的解析，下一步实现 RFC 6184 的 H.264 RTP payload 解包。
+CSRC、扩展头和 padding 的解析，以及 RFC 6184 Single NAL Unit 解包；下一步实现 STAP-A。
 
