@@ -59,7 +59,7 @@ include/semi_stream_probe/core/
   bit_reader.hpp     位读取与 Exp-Golomb 接口
   access_unit.hpp    编码图像边界判断与 Access Unit 组装接口
   gop.hpp            AU Slice 类型分类与 IDR 分隔的 GOP 统计接口
-  h264_rtp.hpp       RFC 6184 payload 分类与 Single NAL/STAP-A 解包接口
+  h264_rtp.hpp       RFC 6184 Single NAL/STAP-A 解包与 FU-A 重组接口
   h264_syntax.hpp    SPS/PPS 数据模型与解析接口
   parameter_sets.hpp SPS/PPS 注册与 ID 查询
   rtp.hpp            RTP 固定头、CSRC、扩展头与 payload 边界解析接口
@@ -69,7 +69,7 @@ include/semi_stream_probe/application/
   inspect.hpp        检查任务和报告编排接口
 
 src/core/
-  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice、Access Unit、GOP 统计、RTP 包头与 Single NAL/STAP-A 解包已实现
+  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice、Access Unit、GOP 统计、RTP 包头、Single NAL/STAP-A 解包与 FU-A 重组已实现
 
 src/application/
   文件读取、核心解析编排和文本输出
@@ -133,6 +133,6 @@ CMake 是构建工具，不属于程序运行时依赖。当前测试不引入 G
 
 当前已完成上述第 1 至 7 步（Slice 不含宏块数据），并通过 CLI 接通
 SPS/PPS/Slice/Access Unit 摘要、GOP 统计和逐 NAL 输出。RTP 阶段已经完成固定头、
-CSRC、扩展头和 padding 的解析，以及 RFC 6184 Single NAL Unit 与 STAP-A 解包；
-下一步实现 FU-A 重组。
+CSRC、扩展头和 padding 的解析，以及 RFC 6184 Single NAL Unit、STAP-A 解包与
+FU-A 重组；下一步完善丢包、乱序、重复和不完整 IDR 分片诊断。
 

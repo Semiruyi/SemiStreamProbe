@@ -22,6 +22,7 @@
 - RTP v2 固定头、CSRC、扩展头和 padding 解析与边界校验；
 - RFC 6184 payload 类型识别与 Single NAL Unit 零拷贝解包；
 - STAP-A 聚合包拆分、内部 NAL 校验和零拷贝输出；
+- FU-A 分片头解析、NAL Header 重建和跨 RTP 包有状态重组；
 - `inspect` 摘要中的 SPS/PPS/Slice/Access Unit 信息输出。
 
 RTP/H.264 负载解析仍按后续里程碑逐步实现。架构说明见
@@ -274,7 +275,7 @@ RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输�
 - [x] RTP Header、扩展字段、SSRC、序列号和时间戳
 - [x] Single NAL Unit
 - [x] STAP-A
-- [ ] FU-A 重组
+- [x] FU-A 重组
 - [ ] 丢包、乱序、重复包和序列号回绕
 - [ ] 不完整 FU-A 与 IDR 丢包影响分析
 - [ ] RFC 3550 interarrival jitter 估计

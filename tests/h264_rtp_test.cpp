@@ -1,5 +1,6 @@
 #include "semi_stream_probe/core/h264_rtp.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <iostream>
@@ -230,6 +231,267 @@ void test_invalid_stap_a_payloads() {
         "Single NAL must not be treated as STAP-A");
 }
 
+semi_stream_probe::RtpPacket make_rtp_packet(
+    semi_stream_probe::ByteView payload,
+    std::uint16_t sequence_number,
+    bool marker = false,
+    std::uint32_t timestamp = 90'000,
+    std::uint32_t ssrc = 0x11223344,
+    std::uint8_t payload_type = 96) {
+    semi_stream_probe::RtpPacket packet;
+    packet.marker = marker;
+    packet.payload_type = payload_type;
+    packet.sequence_number = sequence_number;
+    packet.timestamp = timestamp;
+    packet.ssrc = ssrc;
+    packet.payload = payload;
+    return packet;
+}
+
+void test_fu_a_fragment_parsing() {
+    constexpr std::array<semi_stream_probe::Byte, 4> start_payload{
+        0x7C, 0x85, 0x11, 0x22,
+    };
+    const auto start = semi_stream_probe::parse_h264_fu_a_fragment(
+        make_rtp_packet(start_payload, 10));
+    check(start.has_value(), "FU-A start fragment should parse");
+    if (start) {
+        check(start->indicator.nal_ref_idc == 3, "FU-A indicator NRI");
+        check(start->indicator.nal_unit_type == 28, "FU-A indicator type");
+        check(start->start && !start->end, "FU-A start and end flags");
+        check(start->nal_unit_type == 5, "FU-A original NAL unit type");
+        check(start->payload.size() == 2 && start->payload[0] == 0x11,
+              "FU-A fragment payload excludes both headers");
+    }
+
+    constexpr std::array<semi_stream_probe::Byte, 2> empty_end_payload{
+        0x7C, 0x45,
+    };
+    const auto empty_end = semi_stream_probe::parse_h264_fu_a_fragment(
+        make_rtp_packet(empty_end_payload, 11, true));
+    check(empty_end.has_value(), "empty FU-A payload is allowed");
+    if (empty_end) {
+        check(!empty_end->start && empty_end->end, "FU-A end flag");
+        check(empty_end->payload.empty(), "empty FU-A fragment payload");
+    }
+}
+
+void check_fu_a_parse_error(semi_stream_probe::ByteView payload,
+                            bool marker,
+                            std::size_t expected_offset,
+                            std::string_view message) {
+    const auto result = semi_stream_probe::parse_h264_fu_a_fragment(
+        make_rtp_packet(payload, 222, marker));
+    check(!result, message);
+    if (!result) {
+        check(result.error().code ==
+                  semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload ||
+                  result.error().code ==
+                      semi_stream_probe::ParseErrorCode::unexpected_end_of_data,
+              "invalid FU-A uses a transport payload error code");
+        check(result.error().byte_offset == expected_offset,
+              "invalid FU-A byte offset");
+        check(result.error().rtp_sequence_number == 222,
+              "invalid FU-A carries RTP sequence number");
+    }
+}
+
+void test_invalid_fu_a_fragments() {
+    constexpr std::array<semi_stream_probe::Byte, 1> truncated{0x7C};
+    check_fu_a_parse_error(truncated, false, 1,
+                           "FU-A without FU header should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 2> reserved_bit{0x7C, 0xA5};
+    check_fu_a_parse_error(reserved_bit, false, 1,
+                           "set FU-A reserved bit should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 2> start_and_end{0x7C, 0xC5};
+    check_fu_a_parse_error(start_and_end, true, 1,
+                           "FU-A cannot start and end in one packet");
+
+    constexpr std::array<semi_stream_probe::Byte, 2> nested_fu{0x7C, 0x9C};
+    check_fu_a_parse_error(nested_fu, false, 1,
+                           "FU-A cannot identify another FU-A");
+
+    constexpr std::array<semi_stream_probe::Byte, 2> marker_before_end{0x7C,
+                                                                      0x05};
+    check_fu_a_parse_error(marker_before_end, true, 1,
+                           "marker before FU-A end should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 2> single_nal{0x65, 0x00};
+    check_fu_a_parse_error(single_nal, false, 0,
+                           "Single NAL must not be treated as FU-A");
+}
+
+void test_fu_a_reassembly_and_sequence_wrap() {
+    constexpr std::array<semi_stream_probe::Byte, 4> start_payload{
+        0x7C, 0x85, 0x11, 0x22,
+    };
+    constexpr std::array<semi_stream_probe::Byte, 3> middle_payload{
+        0x7C, 0x05, 0x33,
+    };
+    constexpr std::array<semi_stream_probe::Byte, 4> end_payload{
+        0x7C, 0x45, 0x44, 0x55,
+    };
+
+    semi_stream_probe::H264FuAReassembler reassembler;
+    const auto start = reassembler.push(
+        make_rtp_packet(start_payload, 65'534));
+    check(start.has_value() && !start->has_value(),
+          "FU-A start should begin without producing a NAL");
+    check(reassembler.in_progress(), "FU-A reassembly is active after start");
+
+    const auto middle = reassembler.push(
+        make_rtp_packet(middle_payload, 65'535));
+    check(middle.has_value() && !middle->has_value(),
+          "FU-A middle should not produce a NAL");
+
+    const auto end =
+        reassembler.push(make_rtp_packet(end_payload, 0, true));
+    check(end.has_value() && end->has_value(),
+          "FU-A end should produce a complete NAL");
+    check(!reassembler.in_progress(), "FU-A state clears after completion");
+    if (!end || !*end) {
+        return;
+    }
+
+    const auto& nal = **end;
+    constexpr std::array<semi_stream_probe::Byte, 6> expected{
+        0x65, 0x11, 0x22, 0x33, 0x44, 0x55,
+    };
+    check(nal.header.nal_ref_idc == 3, "reassembled NAL NRI");
+    check(nal.header.nal_unit_type == 5, "reassembled NAL type");
+    check(nal.bytes.size() == expected.size(), "reassembled NAL size");
+    check(std::equal(nal.bytes.begin(), nal.bytes.end(), expected.begin()),
+          "reassembled NAL header and payload bytes");
+    check(nal.start_sequence_number == 65'534,
+          "reassembled NAL start sequence");
+    check(nal.end_sequence_number == 0, "reassembled NAL end sequence wraps");
+    check(nal.timestamp == 90'000, "reassembled NAL timestamp");
+    check(nal.ssrc == 0x11223344, "reassembled NAL SSRC");
+    check(nal.marker, "reassembled NAL preserves final marker");
+}
+
+void test_fu_a_reassembly_errors() {
+    constexpr std::array<semi_stream_probe::Byte, 3> start_payload{
+        0x7C, 0x85, 0x11,
+    };
+    constexpr std::array<semi_stream_probe::Byte, 3> end_payload{
+        0x7C, 0x45, 0x22,
+    };
+    constexpr std::array<semi_stream_probe::Byte, 3> middle_payload{
+        0x7C, 0x05, 0x22,
+    };
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        const auto result =
+            reassembler.push(make_rtp_packet(end_payload, 20, true));
+        check(!result, "FU-A end without start should fail");
+        check(!reassembler.in_progress(), "missing-start failure has no state");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        const auto result =
+            reassembler.push(make_rtp_packet(end_payload, 22, true));
+        check(!result, "FU-A sequence gap should fail");
+        if (!result) {
+            check(result.error().rtp_sequence_number == 22,
+                  "sequence-gap error identifies received packet");
+        }
+        check(!reassembler.in_progress(), "sequence gap discards partial NAL");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        const auto result = reassembler.push(
+            make_rtp_packet(end_payload, 21, true, 90'001));
+        check(!result, "FU-A timestamp change should fail");
+        check(!reassembler.in_progress(),
+              "timestamp change discards partial NAL");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        const auto result = reassembler.push(make_rtp_packet(
+            end_payload, 21, true, 90'000, 0x55667788));
+        check(!result, "FU-A SSRC change should fail");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        const auto result = reassembler.push(make_rtp_packet(
+            end_payload, 21, true, 90'000, 0x11223344, 97));
+        check(!result, "FU-A payload type change should fail");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        constexpr std::array<semi_stream_probe::Byte, 3> changed_nri{
+            0x5C, 0x45, 0x22,
+        };
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        const auto result = reassembler.push(
+            make_rtp_packet(changed_nri, 21, true));
+        check(!result, "FU-A NRI change should fail");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        constexpr std::array<semi_stream_probe::Byte, 3> changed_type{
+            0x7C, 0x46, 0x22,
+        };
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        const auto result = reassembler.push(
+            make_rtp_packet(changed_type, 21, true));
+        check(!result, "FU-A original NAL type change should fail");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        const auto result =
+            reassembler.push(make_rtp_packet(start_payload, 21));
+        check(!result, "second FU-A start before end should fail");
+        check(!reassembler.in_progress(),
+              "repeated-start failure discards partial NAL");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler;
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        reassembler.reset();
+        check(!reassembler.in_progress(), "explicit FU-A reset clears state");
+        const auto result =
+            reassembler.push(make_rtp_packet(middle_payload, 21));
+        check(!result, "middle fragment after reset should fail");
+    }
+
+    {
+        semi_stream_probe::H264FuAReassembler reassembler(2);
+        static_cast<void>(
+            reassembler.push(make_rtp_packet(start_payload, 20)));
+        const auto result =
+            reassembler.push(make_rtp_packet(end_payload, 21, true));
+        check(!result, "FU-A NAL exceeding the size limit should fail");
+        check(!reassembler.in_progress(),
+              "size-limit failure discards partial NAL");
+    }
+}
+
 void test_invalid_payloads() {
     semi_stream_probe::RtpPacket empty_packet;
     empty_packet.sequence_number = 100;
@@ -285,6 +547,10 @@ int main() {
     test_rtp_padding_is_not_nal_data();
     test_stap_a_depacketization();
     test_invalid_stap_a_payloads();
+    test_fu_a_fragment_parsing();
+    test_invalid_fu_a_fragments();
+    test_fu_a_reassembly_and_sequence_wrap();
+    test_fu_a_reassembly_errors();
     test_invalid_payloads();
 
     if (failures != 0) {
