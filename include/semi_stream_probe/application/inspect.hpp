@@ -2,6 +2,7 @@
 
 #include "semi_stream_probe/core/access_unit.hpp"
 #include "semi_stream_probe/core/annex_b.hpp"
+#include "semi_stream_probe/core/gop.hpp"
 #include "semi_stream_probe/core/h264_syntax.hpp"
 #include "semi_stream_probe/core/nal.hpp"
 #include "semi_stream_probe/core/parse_error.hpp"
@@ -35,6 +36,7 @@ struct InspectResult {
     std::vector<Pps> picture_parameter_sets;
     std::vector<InspectedSlice> slices;
     std::vector<AccessUnit> access_units;
+    GopStatistics gop_statistics;
 };
 
 [[nodiscard]] std::expected<InspectResult, ParseError>

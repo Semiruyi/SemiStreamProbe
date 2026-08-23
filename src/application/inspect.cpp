@@ -112,6 +112,7 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
         .picture_parameter_sets = {},
         .slices = {},
         .access_units = {},
+        .gop_statistics = {},
     };
     ParameterSetRegistry parameter_sets;
     result.nal_units.reserve(locations->size());
@@ -245,6 +246,7 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
     if (auto completed = assembler.finish()) {
         result.access_units.push_back(std::move(*completed));
     }
+    result.gop_statistics = analyze_gop(result.access_units);
 
     return result;
 }
@@ -263,7 +265,30 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
            << "NAL units: " << result.nal_units.size() << '\n'
            << "Slices: " << result.slices.size() << '\n'
            << "Access units: " << result.access_units.size() << '\n'
-           << "PPS: " << result.picture_parameter_sets.size() << '\n';
+           << "AU slice types: I=" << result.gop_statistics.kinds.i
+           << " P=" << result.gop_statistics.kinds.p
+           << " B=" << result.gop_statistics.kinds.b
+           << " SP=" << result.gop_statistics.kinds.sp
+           << " SI=" << result.gop_statistics.kinds.si
+           << " Mixed=" << result.gop_statistics.kinds.mixed << '\n'
+           << "IDR access units: "
+           << result.gop_statistics.idr_access_unit_indices.size() << '\n';
+    if (result.gop_statistics.average_idr_interval) {
+        output << std::fixed << std::setprecision(1)
+               << "IDR interval: "
+               << *result.gop_statistics.average_idr_interval
+               << " AU average (min "
+               << *result.gop_statistics.minimum_idr_interval
+               << ", max "
+               << *result.gop_statistics.maximum_idr_interval << ")\n";
+    } else {
+        output << "IDR interval: n/a (need at least two IDR access units)\n";
+    }
+    if (result.gop_statistics.leading_non_idr_access_units != 0) {
+        output << "Leading non-IDR access units: "
+               << result.gop_statistics.leading_non_idr_access_units << '\n';
+    }
+    output << "PPS: " << result.picture_parameter_sets.size() << '\n';
     for (const auto& pps : result.picture_parameter_sets) {
         output << "PPS id: " << pps.pic_parameter_set_id
                << " (SPS " << pps.seq_parameter_set_id << ")\n";

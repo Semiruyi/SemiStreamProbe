@@ -10,6 +10,10 @@ namespace {
     return nal_unit_type == 1 || nal_unit_type == 5;
 }
 
+[[nodiscard]] constexpr std::size_t slice_type_index(SliceType type) noexcept {
+    return static_cast<std::size_t>(type);
+}
+
 // These NAL units precede the primary coded picture of an access unit. When
 // one appears after VCL data, the current access unit is complete and the NAL
 // is retained for the next picture.
@@ -76,6 +80,8 @@ AccessUnitAssembler::push(std::size_t nal_index,
 
         current_->nal_indices.push_back(nal_index);
         current_->vcl_nal_indices.push_back(nal_index);
+        current_->slice_types_present[slice_type_index(
+            slice_header->slice_type)] = true;
         return std::nullopt;
     }
 
@@ -113,12 +119,15 @@ void AccessUnitAssembler::begin_picture(
         .index = next_index_,
         .nal_indices = std::move(pending_prefix_nals_),
         .vcl_nal_indices = {},
+        .slice_types_present = {},
         .first_vcl = slice_header,
     };
     ++next_index_;
     pending_prefix_nals_.clear();
     access_unit.nal_indices.push_back(nal_index);
     access_unit.vcl_nal_indices.push_back(nal_index);
+    access_unit.slice_types_present[slice_type_index(
+        slice_header.slice_type)] = true;
     current_ = std::move(access_unit);
 }
 

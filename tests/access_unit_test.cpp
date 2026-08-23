@@ -101,6 +101,7 @@ void test_multiple_slices_and_new_picture() {
           "first VCL starts an access unit");
     auto second_slice = first;
     second_slice.first_mb_in_slice = 120;
+    second_slice.slice_type = semi_stream_probe::SliceType::b;
     check(!assembler.push(3, nal(1, 2), &second_slice),
           "second slice stays in the same access unit");
 
@@ -115,6 +116,11 @@ void test_multiple_slices_and_new_picture() {
         check(completed->vcl_nal_indices ==
                   std::vector<std::size_t>({2, 3}),
               "VCL indices preserve both slices");
+        check(completed->slice_types_present[
+                  static_cast<std::size_t>(semi_stream_probe::SliceType::p)] &&
+                  completed->slice_types_present[
+                  static_cast<std::size_t>(semi_stream_probe::SliceType::b)],
+              "all slice types in an access unit are retained");
     }
 
     auto final = assembler.finish();

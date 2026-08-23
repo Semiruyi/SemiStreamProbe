@@ -58,6 +58,7 @@ include/semi_stream_probe/core/
   rbsp.hpp           EBSP 到 RBSP 转换接口
   bit_reader.hpp     位读取与 Exp-Golomb 接口
   access_unit.hpp    编码图像边界判断与 Access Unit 组装接口
+  gop.hpp            AU Slice 类型分类与 IDR 分隔的 GOP 统计接口
   h264_syntax.hpp    SPS/PPS 数据模型与解析接口
   parameter_sets.hpp SPS/PPS 注册与 ID 查询
   slice.hpp          基础 Slice Header、参考管理和预测控制解析接口
@@ -66,7 +67,7 @@ include/semi_stream_probe/application/
   inspect.hpp        检查任务和报告编排接口
 
 src/core/
-  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice 与 Access Unit 已实现
+  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice、Access Unit 与 GOP 统计已实现
 
 src/application/
   文件读取、核心解析编排和文本输出
@@ -125,5 +126,6 @@ CMake 是构建工具，不属于程序运行时依赖。当前测试不引入 G
 9. 诊断、JSON 和故障注入。
 
 当前已完成上述第 1 至 6 步（Slice 不含宏块数据），并通过 CLI 接通
-SPS/PPS/Slice/Access Unit 摘要和逐 NAL 输出。下一阶段将实现 GOP 和 IDR 间隔统计。
+SPS/PPS/Slice/Access Unit 摘要、GOP 统计和逐 NAL 输出。下一阶段将实现
+参数集变化诊断，然后进入 RTP/H.264。
 

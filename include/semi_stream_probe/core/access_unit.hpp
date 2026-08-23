@@ -3,11 +3,14 @@
 #include "semi_stream_probe/core/nal.hpp"
 #include "semi_stream_probe/core/slice.hpp"
 
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <vector>
 
 namespace semi_stream_probe {
+
+inline constexpr std::size_t slice_type_count = 5;
 
 // One access unit contains the NAL units associated with one primary coded
 // picture. In progressive material this normally corresponds to one frame.
@@ -15,6 +18,7 @@ struct AccessUnit {
     std::size_t index{0};
     std::vector<std::size_t> nal_indices;
     std::vector<std::size_t> vcl_nal_indices;
+    std::array<bool, slice_type_count> slice_types_present{};
     SliceHeader first_vcl;
 };
 

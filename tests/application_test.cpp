@@ -83,6 +83,10 @@ int main() {
         check(result->picture_parameter_sets.size() == 1, "PPS count");
         check(result->slices.size() == 1, "Slice count");
         check(result->access_units.size() == 1, "Access Unit count");
+        check(result->gop_statistics.kinds.i == 1 &&
+                  result->gop_statistics.idr_access_unit_indices ==
+                      std::vector<std::size_t>({0}),
+              "IDR and I access unit statistics");
         if (!result->access_units.empty()) {
             check(result->access_units.front().nal_indices ==
                       std::vector<std::size_t>({0, 1, 2}),
@@ -121,6 +125,12 @@ int main() {
               "Slice summary count");
         check(text.find("Access units: 1") != std::string::npos,
               "Access Unit summary count");
+        check(text.find("AU slice types: I=1 P=0 B=0") != std::string::npos,
+              "Access Unit slice type summary");
+        check(text.find("IDR access units: 1") != std::string::npos,
+              "IDR summary count");
+        check(text.find("IDR interval: n/a") != std::string::npos,
+              "single IDR has no interval");
         check(text.find("PPS id: 0 (SPS 0)") != std::string::npos,
               "PPS summary id");
         check(text.find("SPS") != std::string::npos, "SPS list entry");
