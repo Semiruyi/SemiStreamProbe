@@ -21,6 +21,7 @@
 - Access Unit 的 I/P/B/SP/SI/混合 Slice 类型统计、IDR 位置与间隔统计；
 - RTP v2 固定头、CSRC、扩展头和 padding 解析与边界校验；
 - RFC 6184 payload 类型识别与 Single NAL Unit 零拷贝解包；
+- STAP-A 聚合包拆分、内部 NAL 校验和零拷贝输出；
 - `inspect` 摘要中的 SPS/PPS/Slice/Access Unit 信息输出。
 
 RTP/H.264 负载解析仍按后续里程碑逐步实现。架构说明见
@@ -272,7 +273,7 @@ RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输�
 
 - [x] RTP Header、扩展字段、SSRC、序列号和时间戳
 - [x] Single NAL Unit
-- [ ] STAP-A
+- [x] STAP-A
 - [ ] FU-A 重组
 - [ ] 丢包、乱序、重复包和序列号回绕
 - [ ] 不完整 FU-A 与 IDR 丢包影响分析

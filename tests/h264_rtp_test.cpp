@@ -101,6 +101,135 @@ void test_rtp_padding_is_not_nal_data() {
     }
 }
 
+void test_stap_a_depacketization() {
+    constexpr std::array<semi_stream_probe::Byte, 22> bytes{
+        0x80, 0xE0, 0x01, 0x41,
+        0x10, 0x20, 0x30, 0x40,
+        0x11, 0x22, 0x33, 0x44,
+        0x78,
+        0x00, 0x02, 0x67, 0x42,
+        0x00, 0x03, 0x68, 0xCE, 0x06,
+    };
+
+    const auto rtp = semi_stream_probe::parse_rtp_packet(bytes);
+    check(rtp.has_value(), "STAP-A RTP packet should parse");
+    if (!rtp) {
+        return;
+    }
+
+    const auto stap_a = semi_stream_probe::depacketize_h264_stap_a(*rtp);
+    check(stap_a.has_value(), "STAP-A should depacketize");
+    if (!stap_a) {
+        return;
+    }
+
+    check(stap_a->indicator.nal_unit_type == 24, "STAP-A indicator type");
+    check(stap_a->indicator.nal_ref_idc == 3, "STAP-A indicator NRI");
+    check(stap_a->nal_units.size() == 2, "STAP-A contains two NAL units");
+    if (stap_a->nal_units.size() != 2) {
+        return;
+    }
+
+    check(stap_a->nal_units[0].header.nal_unit_type == 7,
+          "first STAP-A NAL is SPS");
+    check(stap_a->nal_units[0].bytes.size() == 2,
+          "first STAP-A NAL size");
+    check(stap_a->nal_units[0].bytes.data() == bytes.data() + 15,
+          "first STAP-A NAL is a zero-copy view");
+    check(stap_a->nal_units[1].header.nal_unit_type == 8,
+          "second STAP-A NAL is PPS");
+    check(stap_a->nal_units[1].bytes.size() == 3,
+          "second STAP-A NAL size");
+}
+
+void check_stap_a_error(
+    semi_stream_probe::ByteView payload,
+    semi_stream_probe::ParseErrorCode expected_code,
+    std::size_t expected_offset,
+    std::string_view message) {
+    semi_stream_probe::RtpPacket packet;
+    packet.sequence_number = 777;
+    packet.payload = payload;
+
+    const auto result = semi_stream_probe::depacketize_h264_stap_a(packet);
+    check(!result, message);
+    if (!result) {
+        check(result.error().code == expected_code,
+              "STAP-A failure should use expected error code");
+        check(result.error().byte_offset == expected_offset,
+              "STAP-A failure byte offset");
+        check(result.error().rtp_sequence_number == 777,
+              "STAP-A failure carries RTP sequence number");
+    }
+}
+
+void test_invalid_stap_a_payloads() {
+    constexpr std::array<semi_stream_probe::Byte, 1> empty{0x78};
+    check_stap_a_error(
+        empty, semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 1,
+        "STAP-A without aggregation units should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 2> truncated_size{0x78,
+                                                                    0x00};
+    check_stap_a_error(
+        truncated_size,
+        semi_stream_probe::ParseErrorCode::unexpected_end_of_data, 1,
+        "truncated STAP-A NAL size should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 3> zero_size{0x78, 0x00,
+                                                               0x00};
+    check_stap_a_error(
+        zero_size,
+        semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 1,
+        "zero STAP-A NAL size should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 5> truncated_nal{
+        0x78, 0x00, 0x03, 0x67, 0x42,
+    };
+    check_stap_a_error(
+        truncated_nal,
+        semi_stream_probe::ParseErrorCode::unexpected_end_of_data, 3,
+        "STAP-A NAL shorter than declared size should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 4> forbidden_nal{
+        0x78, 0x00, 0x01, 0xE7,
+    };
+    check_stap_a_error(
+        forbidden_nal,
+        semi_stream_probe::ParseErrorCode::forbidden_zero_bit_set, 3,
+        "STAP-A NAL with set forbidden bit should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 4> nested_stap_a{
+        0x78, 0x00, 0x01, 0x78,
+    };
+    check_stap_a_error(
+        nested_stap_a,
+        semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 3,
+        "nested STAP-A should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 4> contained_fu_a{
+        0x78, 0x00, 0x01, 0x7C,
+    };
+    check_stap_a_error(
+        contained_fu_a,
+        semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 3,
+        "STAP-A containing FU-A should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 4> nri_mismatch{
+        0x78, 0x00, 0x01, 0x47,
+    };
+    check_stap_a_error(
+        nri_mismatch,
+        semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 0,
+        "STAP-A NRI mismatch should fail");
+
+    constexpr std::array<semi_stream_probe::Byte, 2> single_nal{0x67, 0x42};
+    check_stap_a_error(
+        single_nal,
+        semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 0,
+        "Single NAL must not be treated as STAP-A");
+}
+
 void test_invalid_payloads() {
     semi_stream_probe::RtpPacket empty_packet;
     empty_packet.sequence_number = 100;
@@ -154,6 +283,8 @@ int main() {
     test_payload_classification();
     test_single_nal_depacketization();
     test_rtp_padding_is_not_nal_data();
+    test_stap_a_depacketization();
+    test_invalid_stap_a_payloads();
     test_invalid_payloads();
 
     if (failures != 0) {
