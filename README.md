@@ -17,9 +17,10 @@
 - SPS/PPS 参数集注册和 Slice 引用检查；
 - 完整基础 Slice Header（不含宏块数据）、I/P/B/SP/SI 分类；
 - 参考列表修改、加权预测、MMCO、CABAC/QP、去块滤波与 FMO 字段；
-- `inspect` 摘要中的 SPS/PPS/Slice 信息输出。
+- 基于首个 VCL NAL 判别规则的 Access Unit 组装，支持一帧多 Slice 与 AUD；
+- `inspect` 摘要中的 SPS/PPS/Slice/Access Unit 信息输出。
 
-Access Unit、GOP 和 RTP 解析仍按后续里程碑逐步实现。架构说明见
+GOP 和 RTP 解析仍按后续里程碑逐步实现。架构说明见
 [docs/architecture.md](docs/architecture.md)。
 
 ## 构建骨架
@@ -260,7 +261,7 @@ RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输�
 
 - [x] 最小 Slice Header
 - [x] 参数集注册与引用检查
-- [ ] Access Unit 组装
+- [x] Access Unit 组装
 - [ ] I/P/B、IDR 间隔和 GOP 统计
 - [ ] 参数集变化诊断
 

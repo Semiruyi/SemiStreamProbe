@@ -47,6 +47,7 @@ struct MemoryManagementControlOperation {
 
 struct SliceHeader {
     std::size_t header_bit_size{0};
+    std::uint8_t nal_ref_idc{0};
     std::uint32_t first_mb_in_slice{0};
     std::uint32_t slice_type_code{0};
     SliceType slice_type{SliceType::p};

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "semi_stream_probe/core/access_unit.hpp"
 #include "semi_stream_probe/core/annex_b.hpp"
 #include "semi_stream_probe/core/h264_syntax.hpp"
 #include "semi_stream_probe/core/nal.hpp"
@@ -33,6 +34,7 @@ struct InspectResult {
     std::vector<Sps> sequence_parameter_sets;
     std::vector<Pps> picture_parameter_sets;
     std::vector<InspectedSlice> slices;
+    std::vector<AccessUnit> access_units;
 };
 
 [[nodiscard]] std::expected<InspectResult, ParseError>

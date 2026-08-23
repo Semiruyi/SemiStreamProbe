@@ -346,6 +346,7 @@ parse_slice_header(ByteView rbsp,
 
     BitReader reader(rbsp);
     SliceHeader header;
+    header.nal_ref_idc = nal_header.nal_ref_idc;
 
     auto read_ue = [&reader](std::string_view field)
         -> std::expected<std::uint32_t, ParseError> {

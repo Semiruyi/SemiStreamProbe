@@ -111,6 +111,7 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
         .sequence_parameter_sets = {},
         .picture_parameter_sets = {},
         .slices = {},
+        .access_units = {},
     };
     ParameterSetRegistry parameter_sets;
     result.nal_units.reserve(locations->size());
@@ -224,6 +225,27 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
         });
     }
 
+    AccessUnitAssembler assembler;
+    std::size_t next_slice = 0;
+    for (const auto& unit : result.nal_units) {
+        const SliceHeader* slice_header = nullptr;
+        if (next_slice < result.slices.size() &&
+            result.slices[next_slice].nal_index == unit.location.index) {
+            slice_header = &result.slices[next_slice].header;
+            ++next_slice;
+        }
+
+        auto completed = assembler.push(unit.location.index,
+                                        unit.header,
+                                        slice_header);
+        if (completed) {
+            result.access_units.push_back(std::move(*completed));
+        }
+    }
+    if (auto completed = assembler.finish()) {
+        result.access_units.push_back(std::move(*completed));
+    }
+
     return result;
 }
 
@@ -240,6 +262,7 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
     output << "Input bytes: " << result.input_size << '\n'
            << "NAL units: " << result.nal_units.size() << '\n'
            << "Slices: " << result.slices.size() << '\n'
+           << "Access units: " << result.access_units.size() << '\n'
            << "PPS: " << result.picture_parameter_sets.size() << '\n';
     for (const auto& pps : result.picture_parameter_sets) {
         output << "PPS id: " << pps.pic_parameter_set_id
@@ -250,10 +273,28 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
         return output.str();
     }
 
+    std::vector<const AccessUnit*> access_unit_by_nal(result.nal_units.size(),
+                                                      nullptr);
+    for (const auto& access_unit : result.access_units) {
+        for (const auto nal_index : access_unit.nal_indices) {
+            if (nal_index < access_unit_by_nal.size()) {
+                access_unit_by_nal[nal_index] = &access_unit;
+            }
+        }
+    }
+    std::vector<const InspectedSlice*> slice_by_nal(result.nal_units.size(),
+                                                    nullptr);
+    for (const auto& slice : result.slices) {
+        if (slice.nal_index < slice_by_nal.size()) {
+            slice_by_nal[slice.nal_index] = &slice;
+        }
+    }
+
     output << '\n'
            << std::left << std::setw(12) << "OFFSET" << std::setw(10) << "SIZE"
            << std::setw(16) << "TYPE" << std::setw(6) << "REF"
-           << std::setw(8) << "SLICE" << "FRAME_NUM\n";
+           << std::setw(6) << "AU" << std::setw(8) << "SLICE"
+           << "FRAME_NUM\n";
     for (const auto& unit : result.nal_units) {
         std::ostringstream offset;
         offset << "0x" << std::uppercase << std::hex << std::setw(8)
@@ -263,13 +304,18 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
                << nal_unit_type_name(unit.header.nal_unit_type)
                << std::setw(6)
                << static_cast<unsigned int>(unit.header.nal_ref_idc);
-        const InspectedSlice* inspected_slice = nullptr;
-        for (const auto& slice : result.slices) {
-            if (slice.nal_index == unit.location.index) {
-                inspected_slice = &slice;
-                break;
-            }
+        const auto* access_unit =
+            unit.location.index < access_unit_by_nal.size()
+                ? access_unit_by_nal[unit.location.index]
+                : nullptr;
+        if (access_unit == nullptr) {
+            output << std::setw(6) << "-";
+        } else {
+            output << std::setw(6) << access_unit->index;
         }
+        const auto* inspected_slice = unit.location.index < slice_by_nal.size()
+                                          ? slice_by_nal[unit.location.index]
+                                          : nullptr;
         if (inspected_slice == nullptr) {
             output << std::setw(8) << "-" << "-\n";
         } else {

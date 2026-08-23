@@ -29,6 +29,7 @@ function(ssp_use_portable_mingw_runtime target)
 endfunction()
 
 add_library(semi_stream_probe_core STATIC
+    src/core/access_unit.cpp
     src/core/annex_b.cpp
     src/core/bit_reader.cpp
     src/core/h264_syntax.cpp
@@ -201,6 +202,21 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
     add_test(
         NAME semi_stream_probe_slice_tests
         COMMAND semi_stream_probe_slice_tests
+    )
+
+    add_executable(semi_stream_probe_access_unit_tests
+        tests/access_unit_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_access_unit_tests
+        PRIVATE
+            semi_stream_probe_core
+    )
+    target_compile_features(semi_stream_probe_access_unit_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_access_unit_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_access_unit_tests)
+    add_test(
+        NAME semi_stream_probe_access_unit_tests
+        COMMAND semi_stream_probe_access_unit_tests
     )
 
     add_executable(semi_stream_probe_application_tests

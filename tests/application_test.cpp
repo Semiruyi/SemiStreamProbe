@@ -82,6 +82,15 @@ int main() {
         check(result->sequence_parameter_sets.size() == 1, "SPS count");
         check(result->picture_parameter_sets.size() == 1, "PPS count");
         check(result->slices.size() == 1, "Slice count");
+        check(result->access_units.size() == 1, "Access Unit count");
+        if (!result->access_units.empty()) {
+            check(result->access_units.front().nal_indices ==
+                      std::vector<std::size_t>({0, 1, 2}),
+                  "SPS, PPS, and IDR are grouped into one Access Unit");
+            check(result->access_units.front().vcl_nal_indices ==
+                      std::vector<std::size_t>({2}),
+                  "IDR is the Access Unit VCL NAL");
+        }
         if (!result->slices.empty()) {
             check(result->slices.front().header.slice_type ==
                       semi_stream_probe::SliceType::i,
@@ -110,6 +119,8 @@ int main() {
         check(text.find("PPS: 1") != std::string::npos, "PPS summary count");
         check(text.find("Slices: 1") != std::string::npos,
               "Slice summary count");
+        check(text.find("Access units: 1") != std::string::npos,
+              "Access Unit summary count");
         check(text.find("PPS id: 0 (SPS 0)") != std::string::npos,
               "PPS summary id");
         check(text.find("SPS") != std::string::npos, "SPS list entry");
