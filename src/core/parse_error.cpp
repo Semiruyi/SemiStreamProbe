@@ -26,6 +26,8 @@ std::string_view to_string(ParseErrorCode code) noexcept {
         return "invalid_pps";
     case ParseErrorCode::invalid_slice:
         return "invalid_slice";
+    case ParseErrorCode::invalid_rtp:
+        return "invalid_rtp";
     case ParseErrorCode::parameter_set_not_found:
         return "parameter_set_not_found";
     case ParseErrorCode::io_error:

@@ -38,6 +38,7 @@ add_library(semi_stream_probe_core STATIC
     src/core/parameter_sets.cpp
     src/core/parse_error.cpp
     src/core/rbsp.cpp
+    src/core/rtp.cpp
     src/core/slice.cpp
 )
 
@@ -233,6 +234,21 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
     add_test(
         NAME semi_stream_probe_gop_tests
         COMMAND semi_stream_probe_gop_tests
+    )
+
+    add_executable(semi_stream_probe_rtp_tests
+        tests/rtp_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_rtp_tests
+        PRIVATE
+            semi_stream_probe_core
+    )
+    target_compile_features(semi_stream_probe_rtp_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_rtp_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_rtp_tests)
+    add_test(
+        NAME semi_stream_probe_rtp_tests
+        COMMAND semi_stream_probe_rtp_tests
     )
 
     add_executable(semi_stream_probe_application_tests

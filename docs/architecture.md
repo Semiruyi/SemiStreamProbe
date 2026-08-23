@@ -36,7 +36,7 @@ Core 内部的目标数据流为：
 ```text
 Input bytes
   ↓
-Framing: Annex-B / future RTP depacketizer
+Framing: Annex-B / RTP packet parser and depacketizer
   ↓
 Syntax: NAL / RBSP / SPS / PPS / Slice
   ↓
@@ -61,13 +61,14 @@ include/semi_stream_probe/core/
   gop.hpp            AU Slice 类型分类与 IDR 分隔的 GOP 统计接口
   h264_syntax.hpp    SPS/PPS 数据模型与解析接口
   parameter_sets.hpp SPS/PPS 注册与 ID 查询
+  rtp.hpp            RTP 固定头、CSRC、扩展头与 payload 边界解析接口
   slice.hpp          基础 Slice Header、参考管理和预测控制解析接口
 
 include/semi_stream_probe/application/
   inspect.hpp        检查任务和报告编排接口
 
 src/core/
-  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice、Access Unit 与 GOP 统计已实现
+  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice、Access Unit、GOP 统计与 RTP 包头解析已实现
 
 src/application/
   文件读取、核心解析编排和文本输出
@@ -128,7 +129,7 @@ CMake 是构建工具，不属于程序运行时依赖。当前测试不引入 G
 8. RTP Header、Single NAL、STAP-A、FU-A；
 9. 诊断、JSON 和故障注入。
 
-当前已完成上述第 1 至 6 步（Slice 不含宏块数据），并通过 CLI 接通
-SPS/PPS/Slice/Access Unit 摘要、GOP 统计和逐 NAL 输出。下一阶段将实现
-参数集变化诊断，然后进入 RTP/H.264。
+当前已完成上述第 1 至 7 步（Slice 不含宏块数据），并通过 CLI 接通
+SPS/PPS/Slice/Access Unit 摘要、GOP 统计和逐 NAL 输出。RTP 阶段已经完成固定头、
+CSRC、扩展头和 padding 的解析，下一步实现 RFC 6184 的 H.264 RTP payload 解包。
 

@@ -18,6 +18,7 @@ enum class ParseErrorCode {
     invalid_sps,
     invalid_pps,
     invalid_slice,
+    invalid_rtp,
     parameter_set_not_found,
     io_error,
 };
