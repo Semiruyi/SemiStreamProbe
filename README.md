@@ -14,7 +14,7 @@
 - EBSP 到 RBSP 转换和位读取/Exp-Golomb；
 - SPS Profile、Level、色度、位深、分辨率和 cropping 解析；
 - PPS 基础语法、全部 slice group map type 和扩展字段解析；
-- SPS/PPS 参数集注册和 Slice 引用检查；
+- SPS/PPS 参数集按 NAL 顺序激活、同 ID 替换和 Slice 引用检查；
 - 完整基础 Slice Header（不含宏块数据）、I/P/B/SP/SI 分类；
 - 参考列表修改、加权预测、MMCO、CABAC/QP、去块滤波与 FMO 字段；
 - 基于首个 VCL NAL 判别规则的 Access Unit 组装，支持一帧多 Slice 与 AUD；

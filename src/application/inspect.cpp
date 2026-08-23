@@ -16,6 +16,35 @@ namespace semi_stream_probe::application {
 
 namespace {
 
+struct ParsedSpsUnit {
+    std::size_t nal_index{0};
+    Sps syntax;
+};
+
+struct ParsedPpsUnit {
+    std::size_t nal_index{0};
+    Pps syntax;
+};
+
+[[nodiscard]] const Sps* find_sps_context(
+    const std::vector<ParsedSpsUnit>& sequence_parameter_sets,
+    std::size_t pps_nal_index,
+    std::uint32_t sps_id) noexcept {
+    const Sps* latest_preceding = nullptr;
+    const Sps* earliest_following = nullptr;
+    for (const auto& event : sequence_parameter_sets) {
+        if (event.syntax.seq_parameter_set_id != sps_id) {
+            continue;
+        }
+        if (event.nal_index <= pps_nal_index) {
+            latest_preceding = &event.syntax;
+        } else if (earliest_following == nullptr) {
+            earliest_following = &event.syntax;
+        }
+    }
+    return latest_preceding != nullptr ? latest_preceding : earliest_following;
+}
+
 [[nodiscard]] std::size_t rbsp_offset_to_ebsp_offset(ByteView ebsp,
                                                      std::size_t rbsp_offset) {
     std::size_t rbsp_index = 0;
@@ -114,7 +143,6 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
         .access_units = {},
         .gop_statistics = {},
     };
-    ParameterSetRegistry parameter_sets;
     result.nal_units.reserve(locations->size());
     for (const auto& location : *locations) {
         const ByteView payload(bytes.data() + location.payload_offset,
@@ -130,30 +158,43 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
             .location = location,
             .header = *header,
         });
-
-        if (header->nal_unit_type == 7) {
-            constexpr std::size_t nal_header_size = 1;
-            const auto ebsp = payload.subspan(nal_header_size);
-            auto rbsp = ebsp_to_rbsp(ebsp);
-            if (!rbsp) {
-                auto error = std::move(rbsp.error());
-                error.byte_offset += location.payload_offset + nal_header_size;
-                error.nal_index = location.index;
-                return std::unexpected(std::move(error));
-            }
-
-            auto sps = parse_sps(*rbsp);
-            if (!sps) {
-                return std::unexpected(translate_rbsp_error(
-                    std::move(sps.error()), location, ebsp));
-            }
-            result.sequence_parameter_sets.push_back(*sps);
-            parameter_sets.store(*sps);
-        }
     }
 
-    // Parse PPS units after collecting every SPS so a PPS extension uses the
-    // referenced SPS chroma format even when parameter sets arrive out of order.
+    std::vector<ParsedSpsUnit> parsed_sps_units;
+    for (const auto& unit : result.nal_units) {
+        if (unit.header.nal_unit_type != 7) {
+            continue;
+        }
+        constexpr std::size_t nal_header_size = 1;
+        const auto& location = unit.location;
+        const ByteView payload(bytes.data() + location.payload_offset,
+                               location.payload_size);
+        const auto ebsp = payload.subspan(nal_header_size);
+        auto rbsp = ebsp_to_rbsp(ebsp);
+        if (!rbsp) {
+            auto error = std::move(rbsp.error());
+            error.byte_offset += location.payload_offset + nal_header_size;
+            error.nal_index = location.index;
+            return std::unexpected(std::move(error));
+        }
+
+        auto sps = parse_sps(*rbsp);
+        if (!sps) {
+            return std::unexpected(translate_rbsp_error(
+                std::move(sps.error()), location, ebsp));
+        }
+        result.sequence_parameter_sets.push_back(*sps);
+        parsed_sps_units.push_back(ParsedSpsUnit{
+            .nal_index = location.index,
+            .syntax = *sps,
+        });
+    }
+
+    // PPS extension syntax depends on the referenced SPS chroma format. Prefer
+    // the latest SPS active before this PPS; a following SPS is only a parsing
+    // fallback for out-of-order parameter-set delivery. Activation still occurs
+    // later in original NAL order.
+    std::vector<ParsedPpsUnit> parsed_pps_units;
     for (const auto& unit : result.nal_units) {
         if (unit.header.nal_unit_type != 8) {
             continue;
@@ -173,22 +214,34 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
 
         std::uint32_t chroma_format_idc = 1;
         BitReader id_reader(*rbsp);
-        const auto ignored_pps_id = id_reader.read_ue();
-        const auto referenced_sps_id = id_reader.read_ue();
-        if (ignored_pps_id && referenced_sps_id) {
-            const auto* referenced_sps =
-                parameter_sets.find_sps(*referenced_sps_id);
-            if (referenced_sps == nullptr) {
-                return std::unexpected(translate_rbsp_error(ParseError{
-                    .code = ParseErrorCode::parameter_set_not_found,
-                    .byte_offset = id_reader.bit_position() / 8,
-                    .bit_offset = id_reader.bit_position(),
-                    .message = "PPS references missing SPS " +
-                               std::to_string(*referenced_sps_id),
-                }, location, ebsp));
-            }
-            chroma_format_idc = referenced_sps->chroma_format_idc;
+        auto ignored_pps_id = id_reader.read_ue();
+        if (!ignored_pps_id) {
+            auto error = std::move(ignored_pps_id.error());
+            error.message = "could not read pic_parameter_set_id: " +
+                            error.message;
+            return std::unexpected(translate_rbsp_error(
+                std::move(error), location, ebsp));
         }
+        auto referenced_sps_id = id_reader.read_ue();
+        if (!referenced_sps_id) {
+            auto error = std::move(referenced_sps_id.error());
+            error.message = "could not read PPS seq_parameter_set_id: " +
+                            error.message;
+            return std::unexpected(translate_rbsp_error(
+                std::move(error), location, ebsp));
+        }
+        const auto* referenced_sps = find_sps_context(
+            parsed_sps_units, location.index, *referenced_sps_id);
+        if (referenced_sps == nullptr) {
+            return std::unexpected(translate_rbsp_error(ParseError{
+                .code = ParseErrorCode::parameter_set_not_found,
+                .byte_offset = id_reader.bit_position() / 8,
+                .bit_offset = id_reader.bit_position(),
+                .message = "PPS references missing SPS " +
+                           std::to_string(*referenced_sps_id),
+            }, location, ebsp));
+        }
+        chroma_format_idc = referenced_sps->chroma_format_idc;
 
         auto pps = parse_pps(*rbsp, chroma_format_idc);
         if (!pps) {
@@ -196,10 +249,31 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
                 std::move(pps.error()), location, ebsp));
         }
         result.picture_parameter_sets.push_back(*pps);
-        parameter_sets.store(*pps);
+        parsed_pps_units.push_back(ParsedPpsUnit{
+            .nal_index = location.index,
+            .syntax = *pps,
+        });
     }
 
+    // Replay parameter-set definitions in decoding order. A Slice now sees the
+    // versions active at its own NAL position instead of the final definitions
+    // found at end of file.
+    ParameterSetRegistry active_parameter_sets;
+    std::size_t next_sps_unit = 0;
+    std::size_t next_pps_unit = 0;
     for (const auto& unit : result.nal_units) {
+        if (unit.header.nal_unit_type == 7) {
+            active_parameter_sets.store(
+                parsed_sps_units[next_sps_unit].syntax);
+            ++next_sps_unit;
+            continue;
+        }
+        if (unit.header.nal_unit_type == 8) {
+            active_parameter_sets.store(
+                parsed_pps_units[next_pps_unit].syntax);
+            ++next_pps_unit;
+            continue;
+        }
         if (unit.header.nal_unit_type != 1 && unit.header.nal_unit_type != 5) {
             continue;
         }
@@ -215,7 +289,9 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
             error.nal_index = location.index;
             return std::unexpected(std::move(error));
         }
-        auto slice = parse_slice_header(*rbsp, unit.header, parameter_sets);
+        auto slice = parse_slice_header(*rbsp,
+                                        unit.header,
+                                        active_parameter_sets);
         if (!slice) {
             return std::unexpected(translate_rbsp_error(
                 std::move(slice.error()), location, ebsp));

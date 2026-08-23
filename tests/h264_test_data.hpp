@@ -66,6 +66,7 @@ struct BaselineSpsOptions {
     std::uint8_t constraint_and_reserved{0};
     std::uint8_t level_idc{40};
     std::uint32_t seq_parameter_set_id{0};
+    std::uint32_t log2_max_frame_num_minus4{0};
     std::uint32_t pic_order_cnt_type{0};
     std::uint32_t width_in_mbs{120};
     std::uint32_t height_in_map_units{68};
@@ -84,7 +85,7 @@ make_baseline_sps_rbsp(const BaselineSpsOptions& options = {}) {
     writer.write_bits(options.constraint_and_reserved, 8);
     writer.write_bits(options.level_idc, 8);
     writer.write_ue(options.seq_parameter_set_id);
-    writer.write_ue(0); // log2_max_frame_num_minus4
+    writer.write_ue(options.log2_max_frame_num_minus4);
     writer.write_ue(options.pic_order_cnt_type);
     if (options.pic_order_cnt_type == 0) {
         writer.write_ue(0); // log2_max_pic_order_cnt_lsb_minus4
