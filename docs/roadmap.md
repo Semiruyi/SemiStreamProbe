@@ -21,7 +21,7 @@
 尚未闭环：
 
 - RTP 核心组件尚未进入应用层和 CLI；
-- 缺少跨包的丢包、重复、乱序和 jitter 会话统计；
+- RTP 会话统计与 RFC 6184 负载处理尚未在应用层连接；
 - `ParseError` 尚未在 RTP 会话中转换为可累计、可恢复的诊断事件；
 - 尚无 UDP 输入、故障注入演示、CI 和 Release。
 
@@ -131,10 +131,10 @@ semistreamprobe --version
 
 ### Milestone B：RTP 会话分析
 
-- [ ] 增加确定性的 RTP 流分析器；
-- [ ] 按 SSRC 维护会话状态；
-- [ ] 支持丢包、重复、乱序和序列号回绕；
-- [ ] 实现 RFC 3550 interarrival jitter；
+- [x] 增加确定性的 RTP 流分析器；
+- [x] 维护单一活动 SSRC 和 Payload Type；
+- [x] 支持丢包、重复、乱序和序列号回绕；
+- [x] 实现 RFC 3550 interarrival jitter；
 - [ ] 将 RFC 6184 解包和 FU-A 重组接入分析器；
 - [ ] 将可恢复的解析错误转换为诊断并继续分析；
 
