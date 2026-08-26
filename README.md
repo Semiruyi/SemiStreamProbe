@@ -1,36 +1,110 @@
 # SemiStreamProbe
 
-## 当前状态
+SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。它把“花屏、卡顿、
+无法起播”等现象转换为可以定位和复现的码流证据，同时用于系统学习 H.264、RFC 6184
+和实时音视频故障分析。
 
-项目当前已完成第一个可运行的 Annex-B 检查链路，包括：
+项目正在收口 `v0.1.0`。H.264 Annex-B 语法解析和 RTP/H.264 负载处理的核心组件已经
+完成；RTP 会话分析、结构化诊断、JSON、实时 UDP 入口和发布材料尚未完成。
 
-- `semi_stream_probe_core` 核心静态库；
-- `semi_stream_probe_application` 应用层静态库；
-- `semistreamprobe` CLI 入口；
-- 三字节/四字节 Annex-B Start Code 扫描；
-- NAL Header 解析和非法 `forbidden_zero_bit` 检查；
-- `inspect <file.h264> [--nal-list]` 文件检查；
-- Annex-B、NAL、应用层和编译冒烟测试。
-- EBSP 到 RBSP 转换和位读取/Exp-Golomb；
-- SPS Profile、Level、色度、位深、分辨率和 cropping 解析；
-- PPS 基础语法、全部 slice group map type 和扩展字段解析；
-- SPS/PPS 参数集按 NAL 顺序激活、同 ID 替换和 Slice 引用检查；
-- 完整基础 Slice Header（不含宏块数据）、I/P/B/SP/SI 分类；
-- 参考列表修改、加权预测、MMCO、CABAC/QP、去块滤波与 FMO 字段；
-- 基于首个 VCL NAL 判别规则的 Access Unit 组装，支持一帧多 Slice 与 AUD；
-- Access Unit 的 I/P/B/SP/SI/混合 Slice 类型统计、IDR 位置与间隔统计；
-- RTP v2 固定头、CSRC、扩展头和 padding 解析与边界校验；
-- RFC 6184 payload 类型识别与 Single NAL Unit 零拷贝解包；
-- STAP-A 聚合包拆分、内部 NAL 校验和零拷贝输出；
-- FU-A 分片头解析、NAL Header 重建和跨 RTP 包有状态重组；
-- `inspect` 摘要中的 SPS/PPS/Slice/Access Unit 信息输出。
+## 当前可用能力
 
-RTP/H.264 负载解析仍按后续里程碑逐步实现。架构说明见
-[docs/architecture.md](docs/architecture.md)。
+- 扫描三字节和四字节 Annex-B Start Code；
+- 解析 NAL Header，并检查非法 `forbidden_zero_bit`；
+- 完成 EBSP 到 RBSP 转换、位读取和 Exp-Golomb 解码；
+- 解析 SPS、PPS 和基础 Slice Header（不解析宏块数据）；
+- 按 NAL 顺序激活和替换参数集，并检查 Slice 参数集引用；
+- 按首个 VCL NAL 规则组装 Access Unit，支持一帧多 Slice 和 AUD；
+- 统计 I/P/B/SP/SI、混合 Slice、IDR 位置和 IDR 间隔；
+- 解析 RTP v2 固定头、CSRC、扩展头和 padding；
+- 解析 RFC 6184 Single NAL Unit、STAP-A 和 FU-A，并重组连续的 FU-A 分片；
+- 通过 CLI 输出 Annex-B 文件摘要和逐 NAL 列表。
 
-## 构建骨架
+当前 CLI 只接通 Annex-B 文件检查：
 
-项目只需要 CMake、C++23 编译器和标准库。当前环境可以直接使用 MinGW Preset：
+```powershell
+semistreamprobe inspect sample.h264
+semistreamprobe inspect sample.h264 --nal-list
+```
+
+示例输出：
+
+```text
+Codec: H.264/AVC
+Resolution: 1920x1080
+Profile: High
+Level: 4.2
+NAL units: 18342
+Slices: 600
+Access units: 600
+IDR access units: 5
+IDR interval: 120.0 AU average (min 120, max 120)
+```
+
+## v0.1.0 范围
+
+`v0.1.0` 只完成两条输入链路：
+
+```text
+Annex-B file ──→ H.264 syntax/model ──→ report
+
+UDP/RTP ──→ RTP session analysis ──→ RFC 6184 depacketization
+        ──→ H.264 syntax/model ──→ diagnostics/report
+```
+
+版本收口包含：
+
+- Annex-B 文件检查；
+- RTP/H.264 UDP 监听；
+- 丢包、乱序、重复包、序列号回绕和 RFC 3550 jitter 统计；
+- 不完整 FU-A、IDR 分片丢失及恢复边界诊断；
+- 文本与 JSON 报告；
+- 正常流与故障注入样本；
+- Windows/Linux CI、解析器安全检查和 Windows x64 Release；
+- 可在一分钟内复现的故障诊断演示。
+
+冻结后的 CLI 契约和逐项验收条件见 [项目路线图](docs/roadmap.md)。内部边界和数据流见
+[架构设计](docs/architecture.md)。
+
+## 非目标
+
+首个版本不会实现：
+
+- 完整 H.264 解码器或播放器；
+- H.265、AV1、AAC 等其他编解码格式；
+- RTSP、WebRTC、RTCP、重传、FEC 或拥塞控制；
+- PCAP、AVCC、MP4、FLV、MKV 等输入；
+- 通用乱序缓冲、视频渲染、音画同步或硬件解码；
+- HTML 可视化报告。
+
+FFmpeg 可以用于生成测试媒体和交叉验证，但核心 H.264 语法解析、RTP 解析和 RFC 6184
+负载处理不会委托给 FFmpeg。
+
+## 设计原则
+
+### 不信任输入
+
+码流和网络包都被视为不可信数据。解析器在数据不足时不会越界读取，并通过
+`std::expected<T, ParseError>` 返回包含字节、比特、NAL 或 RTP 位置的错误。
+
+### 核心保持确定性
+
+语法解析、RTP 解包、会话统计和诊断规则保持同步且可重复测试。UDP 入口只负责收包和
+记录到达时间，不把 socket、线程或操作系统类型带入 Core。
+
+### 先提供证据，再给出结论
+
+诊断包含严重程度、稳定错误码、证据、可能影响和恢复条件。工具不会只根据一个异常包
+断言画面一定出现特定故障。
+
+### 以边界测试为主
+
+测试重点覆盖截断输入、Start Code 边界、Exp-Golomb 极值、参数集引用错误、RTP 序列号
+回绕、重复与乱序，以及 FU-A 丢首片、丢中片和丢尾片。
+
+## 构建
+
+项目只需要 CMake、C++23 编译器和标准库。当前 MinGW 工作流为：
 
 ```powershell
 cmake --preset mingw-debug
@@ -46,294 +120,30 @@ cmake --build --preset mingw-release
 ctest --preset mingw-release
 ```
 
-Preset 假定 `g++` 和 `ninja` 已经位于 `PATH` 中。Visual Studio 或其他工具链可以
-后续增加独立的 Preset，不需要修改核心代码。
-
-查看 CLI 帮助：
+Preset 假定 `g++` 和 `ninja` 已位于 `PATH`。查看 CLI 帮助：
 
 ```powershell
 .\build\mingw-debug\semistreamprobe.exe --help
 ```
 
-SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。它面向音视频开发、
-测试和故障排查场景，目标是把“花屏、卡顿、无法起播”等现象转换为可观察、可复现的
-码流证据。
+## 文档
 
-> 项目处于规划与早期开发阶段。本文中的命令和输出描述的是 `v0.1.0` 的目标能力，
-> 尚未实现的内容会在路线图中明确标注。
-
-## 为什么做这个项目
-
-播放器或解码器通常只能告诉使用者“解码失败”，却很难直接回答：
-
-- 输入是否缺少 SPS/PPS？
-- Slice 是否引用了不存在的参数集？
-- IDR 是否在 RTP 分片传输过程中丢包？
-- 当前花屏能否自行恢复，需要等待多久？
-- 这是编码码流问题，还是网络丢包、乱序或时间戳问题？
-
-SemiStreamProbe 将 H.264 语法分析和 RTP 传输诊断连接起来，输出异常、影响、证据和
-可能的恢复条件。项目也用于系统学习 H.264、RFC 6184 和实时音视频问题定位。
-
-## 项目目标
-
-- 原生解析 H.264 Annex-B、NAL Unit、SPS、PPS 和最小 Slice Header。
-- 统计分辨率、Profile、Level、帧类型、关键帧间隔和 GOP 结构。
-- 解析 RTP 固定头，并支持 H.264 Single NAL、STAP-A 和 FU-A 解包。
-- 检测丢包、乱序、重复包、时间戳异常和不完整 FU-A。
-- 将协议异常关联到解码影响和恢复边界。
-- 提供适合人工阅读的文本报告和适合自动化处理的 JSON 报告。
-- 对截断、损坏和不可信输入保持内存安全，返回包含位置和上下文的结构化错误。
-
-## 非目标
-
-首个版本不会实现：
-
-- 完整 H.264 解码器；
-- 视频渲染或播放器界面；
-- H.265、AV1、AAC 等其他编解码格式；
-- 完整 RTSP 或 WebRTC 协议栈；
-- 音视频同步、硬件解码或 GPU 处理；
-- 通用 MP4、FLV、MKV 解封装器。
-
-FFmpeg 可以作为后续的输入适配器、测试媒体生成工具和结果对照，但核心 H.264 语法解析
-与 RTP/H.264 重组不会委托给 FFmpeg。
-
-## 目标使用方式
-
-### 检查 H.264 Annex-B 裸流
-
-```powershell
-semistreamprobe inspect sample.h264
-```
-
-目标输出：
-
-```text
-Codec: H.264/AVC
-Resolution: 1920x1080
-Profile: High
-Level: 4.2
-NAL units: 18342
-Access units: 600
-IDR frames: 5
-Average GOP: 120 frames
-SPS/PPS changes: 0
-Diagnostics: 0 errors, 0 warnings
-```
-
-### 查看逐 NAL 信息
-
-```powershell
-semistreamprobe inspect sample.h264 --nal-list
-```
-
-目标输出：
-
-```text
-OFFSET      SIZE    TYPE       REF  FRAME
-0x00000000  28      SPS        3    -
-0x00000020  8       PPS        3    -
-0x0000002C  18452   IDR_SLICE  3    0
-```
-
-### 监听 RTP/H.264
-
-```powershell
-semistreamprobe listen --udp 0.0.0.0:5004 --payload-type 96
-```
-
-目标诊断：
-
-```text
-[ERROR] Incomplete FU-A at RTP sequence 12031.
-Evidence: one packet is missing while reconstructing an IDR NAL unit.
-Impact: the current access unit cannot be reconstructed safely.
-Recovery: visible corruption may continue until the next intact IDR.
-```
-
-### 输出 JSON 报告
-
-```powershell
-semistreamprobe inspect sample.h264 --output json
-```
-
-JSON 输出用于回归测试、批量巡检和其他工具集成。字段结构会在首个可用版本中确定，
-`v0.x` 阶段不承诺跨版本兼容。
-
-## 计划架构
-
-```text
-Input
-├── AnnexBFileSource
-├── UdpRtpSource
-└── PcapSource                  (future)
-        │
-        ▼
-Transport / Framing
-├── AnnexBScanner
-├── RtpPacketParser
-└── H264RtpDepacketizer
-        │
-        ▼
-H.264 Syntax
-├── EbspToRbsp
-├── BitReader
-├── ExpGolombReader
-├── NalHeaderParser
-├── SpsParser
-├── PpsParser
-└── SliceHeaderParser
-        │
-        ▼
-Stream Model
-├── ParameterSetRegistry
-├── AccessUnitAssembler
-├── GopTracker
-└── StreamStatistics
-        │
-        ▼
-Diagnostics
-├── SyntaxRules
-├── ParameterSetRules
-├── TimestampRules
-└── RtpContinuityRules
-        │
-        ▼
-Report
-├── TextReporter
-└── JsonReporter
-```
-
-RTP/H.264 解包器的输出仍然是 NAL Unit，因此文件输入和网络输入会复用同一套 H.264
-语法解析、流模型和诊断规则。
-
-## 设计原则
-
-### 不信任输入
-
-码流和网络包都被视为不可信数据。解析器不会依赖断言处理输入错误，也不会在数据不足时
-越界读取。预期采用 `std::expected<T, ParseError>` 返回错误，并保留：
-
-- 错误码；
-- 字节或比特偏移；
-- NAL 索引或 RTP 序列号；
-- 用于定位问题的简短上下文。
-
-### 核心组件保持确定性
-
-语法解析、RTP 解包、流模型和诊断规则首先实现为同步、可重复测试的组件。实时 UDP 输入
-只负责提供数据，不把网络时序和并发状态扩散到核心解析器。
-
-### 先提供证据，再给出结论
-
-诊断结果至少包含严重程度、错误码、解释、影响、恢复条件和原始证据。工具不会仅凭单个
-异常包武断地声称画面一定出现某种故障。
-
-### 测试关注边界而不是数量
-
-重点覆盖截断输入、Start Code 边界、Exp-Golomb 极值、参数集引用错误、RTP 序列号
-回绕、重复与乱序，以及 FU-A 丢首片、丢中片和丢尾片等情况。
-
-## 路线图
-
-### Milestone 0：工程基线
-
-- [x] C++23、CMake 和无第三方依赖的冒烟测试入口
-- [x] CLI、错误模型和测试媒体约定的接口骨架
-- [x] 基础项目文档
-- [ ] Windows 构建与持续集成
-
-### Milestone 1：Annex-B 与 NAL
-
-- [x] 三字节和四字节 Start Code
-- [x] NAL Header 解析
-- [ ] VCL/非 VCL 分类与统计
-- [ ] 截断、空 NAL 和非法 `forbidden_zero_bit` 诊断
-- [x] 逐 NAL 文本输出
-
-### Milestone 2：参数集
-
-- [x] EBSP 到 RBSP 转换
-- [x] 位读取与有符号/无符号 Exp-Golomb
-- [x] SPS 解析
-- [x] PPS 解析
-- [x] 分辨率、Profile、Level、色度格式和位深
-- [x] cropping
-- [ ] 基础 VUI 字段
-
-### Milestone 3：Slice 与 GOP
-
-- [x] 最小 Slice Header
-- [x] 参数集注册与引用检查
-- [x] Access Unit 组装
-- [x] I/P/B、IDR 间隔和 GOP 统计
-- [ ] 参数集变化诊断
-
-### Milestone 4：RTP/H.264
-
-- [x] RTP Header、扩展字段、SSRC、序列号和时间戳
-- [x] Single NAL Unit
-- [x] STAP-A
-- [x] FU-A 重组
-- [ ] 丢包、乱序、重复包和序列号回绕
-- [ ] 不完整 FU-A 与 IDR 丢包影响分析
-- [ ] RFC 3550 interarrival jitter 估计
-
-### Milestone 5：诊断与发布
-
-- [ ] 文本和 JSON 报告
-- [ ] 至少 10 类结构化诊断
-- [ ] 正常与故障注入样本
-- [ ] 与 FFmpeg/ffprobe 结果对照
-- [ ] 模糊测试
-- [ ] Windows x64 Release 包
-- [ ] 一分钟故障诊断演示
-
-### 后续探索
-
-- [ ] 离线 PCAP + SDP 分析
-- [ ] AVCC 输入
-- [ ] 最小 RTSP 客户端或 FFmpeg RTSP 输入适配器
-- [ ] Linux 构建与 CI
-- [ ] H.265/RTP
-- [ ] HTML 可视化报告
-
-## `v0.1.0` 完成标准
-
-首个可发布版本需要满足：
-
-- 支持 H.264 Annex-B 裸流；
-- 支持 SPS、PPS 和最小 Slice Header；
-- 支持 Single NAL、STAP-A 和 FU-A；
-- 支持实时 UDP 或确定性的离线 RTP 输入；
-- 提供至少 10 类结构化诊断；
-- 提供文本与 JSON 输出；
-- 包含正常样本和故障注入测试；
-- 发布可直接运行的 Windows x64 包；
-- README 提供可在一分钟内完成的演示；
-- 能用诊断证据解释 IDR 的 FU-A 中间分片丢失后的影响和恢复边界。
-
-## 构建
-
-当前 MinGW 工作流为：
-
-```powershell
-cmake --preset mingw-debug
-cmake --build --preset mingw-debug
-ctest --preset mingw-debug
-```
+| 文档 | 内容 |
+|---|---|
+| [架构设计](docs/architecture.md) | 依赖方向、数据所有权、错误与诊断边界、目标数据流 |
+| [项目路线图](docs/roadmap.md) | v0.1.0 冻结范围、CLI 契约、实现顺序和完成标准 |
+| [测试样本](samples/README.md) | 本地媒体生成方式和样本许可证约束 |
 
 ## 参考标准
 
-- ITU-T H.264：Advanced video coding for generic audiovisual services
-- RFC 6184：RTP Payload Format for H.264 Video
-- RFC 3550：RTP: A Transport Protocol for Real-Time Applications
+- ITU-T H.264：Advanced video coding for generic audiovisual services；
+- RFC 6184：RTP Payload Format for H.264 Video；
+- RFC 3550：RTP: A Transport Protocol for Real-Time Applications。
 
-实现会记录所依据的标准章节。测试媒体和抓包样本将同时记录来源、生成方式与授权信息，
-避免无法复现或许可证不明确的二进制素材进入仓库。
+实现和测试会记录所依据的标准章节。二进制样本进入仓库前必须记录来源、生成方式和
+再分发许可证。
 
 ## 许可证
 
-许可证将在首次发布前确定。在许可证确定之前，请不要假定本仓库内容允许复制、修改或
-重新分发。
+项目许可证将在 `v0.1.0` 发布前确定。在许可证确定之前，请不要假定本仓库内容允许
+复制、修改或重新分发。

@@ -1,138 +1,228 @@
-# SemiStreamProbe 架构骨架
+# SemiStreamProbe 架构设计
 
-当前版本已接通 Annex-B 文件读取、NAL 边界识别、SPS/PPS、完整基础 Slice Header、
-Access Unit 组装和逐 NAL 文本输出。后续解析逻辑继续按学习顺序逐个模块补充，
-并通过测试样本验证。
+本文说明当前实现和 `v0.1.0` 收口目标。文中使用“当前”描述已经存在的代码，使用
+“目标”描述路线图中尚待实现的结构，避免把设计意图误写成现有能力。
 
-## 1. 目标
+## 1. 目标与边界
 
-SemiStreamProbe 是一个同步、确定性、无第三方运行时依赖的 H.264/RTP 码流诊断工具。
-首个阶段只关注：
+SemiStreamProbe 是同步、确定性、无第三方运行时依赖的 H.264/RTP 码流诊断工具。
 
-- Annex-B 文件输入；
-- NAL Unit 边界识别；
-- NAL Header 解析；
-- Slice Header 与 Access Unit 组装；
-- 后续逐步增加 GOP 和 RTP 能力。
+它负责：
 
-它不承担播放器职责，也不依赖 SemiPlayer 的运行时模块。
+- 识别 H.264 Annex-B、NAL 和必要的语法结构；
+- 解析 RTP 与 RFC 6184 负载；
+- 建立参数集、Access Unit、GOP 和 RTP 会话统计；
+- 把异常转换成带证据、可能影响和恢复条件的诊断；
+- 通过文本和 JSON 对外提供同一份分析结果。
+
+它不负责解码、渲染、音画同步、重传、拥塞控制或通用网络播放。
 
 ## 2. 依赖方向
 
 ```text
 CLI
- ↓
-Application
- ↓
-Core
+ │
+ ▼
+Application ──→ Input adapters
+ │                 │
+ └────────┬────────┘
+          ▼
+         Core
 ```
 
-- `CLI`：命令行参数、退出码和最终输出；
-- `Application`：一次检查任务的编排、文件输入和报告选择；
-- `Core`：纯码流处理，不能依赖 CLI、操作系统 API 或 FFmpeg。
+- `CLI`：解析命令行、选择任务、打印结果并映射退出码；
+- `Application`：编排一次检查或监听任务，选择报告格式；
+- `Input adapters`：文件读取、UDP socket 和到达时间采集；
+- `Core`：纯字节解析、状态模型、统计和诊断，不依赖 CLI 或操作系统 API。
 
-Core 内部的目标数据流为：
+依赖只能指向 Core。Core 不知道输入来自文件、UDP、测试字节数组还是未来的其他适配器。
+
+## 3. 两条数据链路
+
+### 3.1 Annex-B 文件
 
 ```text
-Input bytes
+File bytes
   ↓
-Framing: Annex-B / RTP packet parser and depacketizer
+AnnexBScanner
   ↓
-Syntax: NAL / RBSP / SPS / PPS / Slice
+NAL / RBSP / SPS / PPS / Slice
   ↓
-Model: parameter sets / access units / GOP
+ParameterSetRegistry / AccessUnitAssembler / GopStatistics
   ↓
-Diagnostics and reports
+AnalysisReport
+  ↓
+TextReporter / JsonReporter
 ```
 
-RTP 解包器未来仍然输出 NAL Unit，因此文件输入和网络输入可以复用同一套语法解析器。
+当前已经接通至文本输出；统一报告模型和 JSON Reporter 尚未实现。
 
-## 3. 当前目录职责
+### 3.2 UDP/RTP/H.264
+
+```text
+UDP datagram + monotonic arrival time
+  ↓
+RtpPacketParser
+  ↓
+RtpStreamAnalyzer
+  ├── sequence / duplicate / reorder / jitter
+  └── active SSRC state
+  ↓
+H264RtpDepacketizer
+  ├── Single NAL Unit
+  ├── STAP-A
+  └── FU-A Reassembler
+  ↓
+NAL / H.264 stream model
+  ↓
+AnalysisReport + Diagnostics
+```
+
+当前已经实现 RTP 包解析和三类 RFC 6184 负载组件；`RtpStreamAnalyzer`、UDP 适配器及
+报告接线是 `v0.1.0` 的主要剩余工作。
+
+## 4. 当前目录职责
 
 ```text
 include/semi_stream_probe/core/
   types.hpp          基础字节类型和 ByteView
   parse_error.hpp    结构化解析错误
-  annex_b.hpp        Annex-B 扫描器接口
-  nal.hpp            NAL Header 接口
-  rbsp.hpp           EBSP 到 RBSP 转换接口
-  bit_reader.hpp     位读取与 Exp-Golomb 接口
-  access_unit.hpp    编码图像边界判断与 Access Unit 组装接口
-  gop.hpp            AU Slice 类型分类与 IDR 分隔的 GOP 统计接口
-  h264_rtp.hpp       RFC 6184 Single NAL/STAP-A 解包与 FU-A 重组接口
-  h264_syntax.hpp    SPS/PPS 数据模型与解析接口
-  parameter_sets.hpp SPS/PPS 注册与 ID 查询
-  rtp.hpp            RTP 固定头、CSRC、扩展头与 payload 边界解析接口
-  slice.hpp          基础 Slice Header、参考管理和预测控制解析接口
+  annex_b.hpp        Annex-B 扫描
+  nal.hpp            NAL Header
+  rbsp.hpp           EBSP 到 RBSP
+  bit_reader.hpp     位读取与 Exp-Golomb
+  h264_syntax.hpp    SPS/PPS 数据模型与解析
+  parameter_sets.hpp SPS/PPS 注册与查询
+  slice.hpp          基础 Slice Header
+  access_unit.hpp    Access Unit 组装
+  gop.hpp            Slice 类型与 GOP 统计
+  rtp.hpp            RTP 包解析
+  h264_rtp.hpp       Single NAL/STAP-A 解包与 FU-A 重组
 
 include/semi_stream_probe/application/
-  inspect.hpp        检查任务和报告编排接口
+  inspect.hpp        Annex-B 检查任务与当前文本结果
 
-src/core/
-  Annex-B、NAL、RBSP、位读取、SPS、PPS、参数集注册、Slice、Access Unit、GOP 统计、RTP 包头、Single NAL/STAP-A 解包与 FU-A 重组已实现
-
-src/application/
-  文件读取、核心解析编排和文本输出
-
-src/cli/
-  可执行程序入口和命令行外壳
-
-tests/
-  无第三方测试框架的核心语法、应用层和编译冒烟测试
+src/core/            Core 接口实现
+src/application/     文件检查编排
+src/cli/             命令行入口
+tests/               无第三方测试框架的确定性测试
 ```
 
-## 4. 数据所有权
+收口期间允许按职责增加会话分析、诊断、报告和 UDP 适配代码，但不会为了预想中的扩展
+提前建立通用媒体框架。
 
-第一版的 Annex-B 扫描器返回 `NalUnitRef`，它只保存输入缓冲区中的偏移和长度，不拥有
-数据。调用方负责保证原始字节缓冲区的生命周期。
+## 5. 数据所有权
 
-解析器接收 `ByteView`，只返回值类型结果。报告层在需要跨越输入生命周期保存内容时，
-再复制必要的摘要字段，而不是让报告保存悬空视图。
+### 5.1 借用视图
 
-RTP FU-A 重组以后，重组器会拥有自己的 NAL 缓冲区，但仍以 `ByteView` 交给语法解析器。
+`NalUnitRef` 保存输入缓冲区中的偏移和长度，不拥有字节。解析器接收 `ByteView`，调用方
+必须保证底层缓冲区在解析期间有效。
 
-## 5. 错误边界
+RTP Header、Single NAL 和 STAP-A 返回的 `ByteView` 同样借用调用方持有的 UDP datagram。
+这些视图不得进入跨包状态或最终报告。
 
-解析函数使用 `std::expected<T, ParseError>` 表示“无法产生结果”。`ParseError` 保留：
+### 5.2 跨包状态
+
+FU-A 重组器拥有尚未完成的 NAL 缓冲区。完成后返回拥有字节的值对象，错误或显式重置
+必须释放不完整数据。
+
+RTP 会话分析器只保存统计、序列状态、必要的参数集摘要和 FU-A 重组状态，不无限保留
+原始数据包。所有集合和重组缓冲都必须有明确上限。
+
+### 5.3 报告
+
+`AnalysisReport` 只保存值类型摘要。它不保存指向输入文件或 UDP datagram 的视图，因此
+可以在输入缓冲释放后继续渲染为文本或 JSON。
+
+## 6. 错误与诊断边界
+
+### 6.1 ParseError
+
+解析函数使用 `std::expected<T, ParseError>` 表示当前结构无法产生合法结果。
+`ParseError` 保存：
 
 - 错误码；
-- 字节偏移；
-- 比特偏移；
+- 字节和比特偏移；
 - NAL 索引；
 - RTP 序列号；
-- 面向用户的简短信息。
+- 简短技术信息。
 
-未来的批量检查还会增加 `Diagnostic`，用于记录可以跳过并继续分析的警告或错误。解析
-错误和诊断报告分开，避免把所有异常都变成异常退出。
+Annex-B 文件的关键语法无法继续解析时，应用层可以让整个检查任务失败。
 
-参数集语法可以先独立提取，但 SPS/PPS 只能按原始 NAL 顺序激活。Slice 解析始终
-使用它所在位置已激活的参数集版本，不使用文件末尾最终留存的同 ID 定义。
+### 6.2 Diagnostic
 
-## 6. 跨平台策略
+目标 `Diagnostic` 表示会话级、可以记录后继续分析的问题：
+
+```text
+severity + stable code + summary
+location/evidence + possible impact + recovery
+```
+
+例如，FU-A 序列号中断会产生诊断、丢弃当前不完整 NAL 并重置重组器，但不会终止 UDP
+监听。后续合法的 FU-A 起始片可以建立新状态。
+
+同一个底层错误在不同上下文中的影响可能不同：普通非参考 NAL 与 IDR NAL 的分片丢失
+不能机械地输出相同结论。因此 Core 先保留事实，诊断规则再结合 NAL 类型和会话状态生成
+影响与恢复说明。
+
+## 7. RTP 会话状态
+
+目标 `RtpStreamAnalyzer` 接收完整 datagram 和单调时钟到达时间。首版只分析一个活动
+SSRC：未显式配置时由首个合法媒体包锁定，其他 SSRC 产生诊断并忽略。分析器维护：
+
+- 配置的 Payload Type 和时钟频率；
+- 最近接收序列号及回绕状态；
+- 接收、丢失、重复和乱序数量；
+- RFC 3550 interarrival jitter 所需的 transit 状态；
+- 当前 FU-A 重组状态；
+- H.264 参数集和最近完整 IDR 信息；
+- 已累计的诊断与受限证据。
+
+首版不实现通用乱序缓冲。一个迟到包可以被识别和统计，但不会回填已经丢弃的 FU-A。
+这是诊断工具的明确策略，不代表播放器或 SemiLive 接收端未来必须采用相同策略。
+
+## 8. 参数集与 Access Unit
+
+SPS/PPS 可以先从文件中独立提取，但只按原始 NAL 顺序激活。Slice 始终使用它所在位置
+已经激活的参数集版本，不能使用文件末尾最终留存的同 ID 定义。
+
+Annex-B 和 RTP 解包最终都产生 NAL，因此应复用参数集注册、Slice 解析和 Access Unit
+组装逻辑。输入适配层不得复制一套 H.264 语法实现。
+
+## 9. 报告边界
+
+分析器只生成统一 `AnalysisReport`，Reporter 负责序列化：
+
+```text
+AnalysisReport
+  ├── input/session metadata
+  ├── H.264 summary
+  ├── RTP summary
+  ├── access-unit/GOP statistics
+  └── diagnostics[]
+          ↓
+     Text / JSON
+```
+
+Reporter 不重新判断丢包、IDR 影响或恢复条件，避免文本和 JSON 对相同输入给出不同结论。
+JSON 的字段契约会在实现前单独冻结并通过 golden tests 验证。
+
+## 10. 跨平台与运行模型
 
 Core 只使用 C++ 标准库中的固定宽度整数、`std::span`、`std::vector`、`std::expected`
-和基础字符串类型，不使用平台 API。
+和基础字符串、时间类型。
 
-文件读取暂时也使用标准 C++ 文件流。未来 UDP 输入如果需要平台适配，只允许出现在
-Input/Infrastructure 边界，不向 Core 泄漏 Windows socket 或 POSIX socket 类型。
+UDP 的 Windows socket 与 POSIX socket 差异只存在于输入适配器。UDP 接收循环可以阻塞，
+但每个 datagram 进入 Core 后按顺序同步分析；首版不需要在线程之间共享分析状态。
 
-CMake 是构建工具，不属于程序运行时依赖。当前测试不引入 GoogleTest 等外部测试库，
-后续如果测试规模明显增长，再单独评估是否引入测试依赖。
+CMake 是构建工具，不属于程序运行时依赖。测试继续优先使用小型、确定性的字节样本；
+真实 socket 只验证适配边界，不承担协议规则的主要覆盖。
 
-## 7. 实现顺序
+## 11. 实现约束
 
-1. Annex-B 三字节/四字节 Start Code；
-2. NAL Header；
-3. EBSP 到 RBSP；
-4. BitReader 和 Exp-Golomb；
-5. SPS/PPS；
-6. Slice Header 和 Access Unit；
-7. GOP/统计；
-8. RTP Header、Single NAL、STAP-A、FU-A；
-9. 诊断、JSON 和故障注入。
-
-当前已完成上述第 1 至 7 步（Slice 不含宏块数据），并通过 CLI 接通
-SPS/PPS/Slice/Access Unit 摘要、GOP 统计和逐 NAL 输出。RTP 阶段已经完成固定头、
-CSRC、扩展头和 padding 的解析，以及 RFC 6184 Single NAL Unit、STAP-A 解包与
-FU-A 重组；下一步完善丢包、乱序、重复和不完整 IDR 分片诊断。
-
+- 所有长度、偏移和算术在使用前检查溢出；
+- 不可信输入不得触发断言、越界访问或无上限分配；
+- 会话错误必须明确选择“继续、重置局部状态或终止任务”；
+- 诊断码一旦进入 `v0.1.0` JSON 契约，不因文案修改而改变；
+- 新增能力必须先有确定性 Core 测试，再接 CLI 或 UDP；
+- 首版范围和完成条件以 [项目路线图](roadmap.md) 为准。
