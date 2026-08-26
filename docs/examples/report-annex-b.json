@@ -29,6 +29,7 @@
     "slices": 3,
     "access_units": 3,
     "idr_access_units": 1,
+    "leading_non_idr_access_units": 0,
     "slice_types": {
       "i": 1,
       "p": 2,
@@ -38,6 +39,23 @@
       "mixed": 0
     },
     "idr_interval_au": null,
+    "sequence_parameter_sets": [
+      {
+        "id": 0,
+        "profile": "High",
+        "level": "4.2",
+        "resolution": {
+          "width": 1920,
+          "height": 1080
+        }
+      }
+    ],
+    "picture_parameter_sets": [
+      {
+        "id": 0,
+        "sequence_parameter_set_id": 0
+      }
+    ],
     "nal_list": [
       {
         "index": 0,

@@ -14,14 +14,16 @@
 - RTP Header、CSRC、扩展头和 padding；
 - RFC 6184 Single NAL Unit、STAP-A 和 FU-A；
 - FU-A 连续分片重组、序列号回绕和错误状态清理；
-- Annex-B 摘要和逐 NAL 文本输出。
+- Annex-B 摘要、逐 NAL 列表、统一报告模型和文本/JSON 输出；
+- 稳定的 `Diagnostic` 类型、严重程度和首版诊断码；
+- `--version` 及当前 CLI 的稳定退出码。
 
 尚未闭环：
 
 - RTP 核心组件尚未进入应用层和 CLI；
 - 缺少跨包的丢包、重复、乱序和 jitter 会话统计；
-- `ParseError` 尚未转换为可累计、可恢复的诊断事件；
-- 尚无 JSON 报告、UDP 输入、故障注入演示、CI 和 Release。
+- `ParseError` 尚未在 RTP 会话中转换为可累计、可恢复的诊断事件；
+- 尚无 UDP 输入、故障注入演示、CI 和 Release。
 
 ## 2. 冻结范围
 
@@ -56,7 +58,11 @@
 当前已经实现：
 
 ```text
-semistreamprobe inspect <file.h264> [--nal-list]
+semistreamprobe inspect <file.h264>
+    [--nal-list]
+    [--output text|json]
+
+semistreamprobe --version
 ```
 
 `v0.1.0` 目标接口：
@@ -136,12 +142,12 @@ semistreamprobe --version
 
 ### Milestone C：报告与 CLI
 
-- [ ] 实现统一报告模型；
-- [ ] 实现文本报告；
-- [ ] 实现 JSON 报告；
+- [x] 实现统一报告模型；
+- [x] 实现文本报告；
+- [x] 实现 JSON 报告；
 - [ ] 实现跨平台 UDP 输入；
 - [ ] 接通 `listen --udp`；
-- [ ] 增加 `--version` 和稳定退出码；
+- [x] 增加 `--version` 和稳定退出码；
 
 完成条件：Annex-B 和 UDP 两条入口均能生成语义一致的文本或 JSON 报告。
 

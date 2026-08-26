@@ -147,7 +147,10 @@ int main() {
                       result->sequence_parameter_sets.front().height == 1080,
                   "SPS display dimensions");
         }
-        const auto text = semi_stream_probe::application::render_text(*result, options);
+        const auto report =
+            semi_stream_probe::application::make_annex_b_report(
+                *result, sample_path, options);
+        const auto text = semi_stream_probe::application::render_text(report);
         check(text.find("NAL units: 3") != std::string::npos, "summary count");
         check(text.find("Resolution: 1920x1080") != std::string::npos,
               "summary resolution");
@@ -171,6 +174,18 @@ int main() {
         check(text.find("PPS") != std::string::npos, "PPS list entry");
         check(text.find("IDR_SLICE") != std::string::npos, "IDR list entry");
         check(text.find("SLICE") != std::string::npos, "Slice list column");
+
+        const auto json = semi_stream_probe::application::render_json(report);
+        check(json.find("\"schema_version\": \"1.0\"") !=
+                  std::string::npos,
+              "JSON schema version");
+        check(json.find("\"kind\": \"annex_b\"") != std::string::npos,
+              "JSON analysis kind");
+        check(json.find("\"nal_units\": 3") != std::string::npos,
+              "JSON NAL count");
+        check(json.find("\"picture_parameter_sets\": [") !=
+                  std::string::npos,
+              "JSON parameter-set details");
     }
 
     const auto missing = semi_stream_probe::application::inspect_file(

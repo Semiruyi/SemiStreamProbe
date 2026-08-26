@@ -158,6 +158,7 @@ struct Diagnostic {
   "slices": 600,
   "access_units": 600,
   "idr_access_units": 5,
+  "leading_non_idr_access_units": 0,
   "slice_types": {
     "i": 5,
     "p": 595,
@@ -171,12 +172,24 @@ struct Diagnostic {
     "minimum": 120,
     "maximum": 120
   },
+  "sequence_parameter_sets": [
+    {
+      "id": 0,
+      "profile": "High",
+      "level": "4.2",
+      "resolution": { "width": 1920, "height": 1080 }
+    }
+  ],
+  "picture_parameter_sets": [
+    { "id": 0, "sequence_parameter_set_id": 0 }
+  ],
   "nal_list": null
 }
 ```
 
 - 尚未解析到有效 SPS 时，`profile`、`level` 和 `resolution` 为 `null`；
 - 少于两个完整 IDR Access Unit 时，`idr_interval_au` 为 `null`；
+- `sequence_parameter_sets` 和 `picture_parameter_sets` 按输入中出现的顺序保存摘要；
 - `nal_list` 仅在 `inspect --nal-list` 时为数组，否则为 `null`；
 - RTP 中被确认不完整并丢弃的 NAL 不计入 `nal_units`，其影响通过诊断和 RTP 统计表达；
 - 所有计数均为非负 JSON integer，累计实现使用至少 64 位无符号整数。

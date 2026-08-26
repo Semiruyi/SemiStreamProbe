@@ -54,6 +54,7 @@ ssp_enable_warnings(semi_stream_probe_core)
 
 add_library(semi_stream_probe_application STATIC
     src/application/inspect.cpp
+    src/application/report.cpp
 )
 
 target_include_directories(semi_stream_probe_application
@@ -296,6 +297,26 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
     add_test(
         NAME semi_stream_probe_application_tests
         COMMAND semi_stream_probe_application_tests
+    )
+
+    add_executable(semi_stream_probe_report_tests
+        tests/report_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_report_tests
+        PRIVATE
+            semi_stream_probe_application
+    )
+    target_compile_features(semi_stream_probe_report_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_report_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_report_tests)
+    add_test(
+        NAME semi_stream_probe_report_tests
+        COMMAND semi_stream_probe_report_tests
+    )
+
+    add_test(
+        NAME semistreamprobe_version
+        COMMAND semistreamprobe --version
     )
 endif()
 

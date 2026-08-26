@@ -1,5 +1,6 @@
 #pragma once
 
+#include "semi_stream_probe/application/report.hpp"
 #include "semi_stream_probe/core/access_unit.hpp"
 #include "semi_stream_probe/core/annex_b.hpp"
 #include "semi_stream_probe/core/gop.hpp"
@@ -42,7 +43,9 @@ struct InspectResult {
 [[nodiscard]] std::expected<InspectResult, ParseError>
 inspect_file(const std::filesystem::path& path, const InspectOptions& options);
 
-[[nodiscard]] std::string render_text(const InspectResult& result,
-                                      const InspectOptions& options);
+[[nodiscard]] AnalysisReport
+make_annex_b_report(const InspectResult& result,
+                    const std::filesystem::path& path,
+                    const InspectOptions& options);
 
 } // namespace semi_stream_probe::application

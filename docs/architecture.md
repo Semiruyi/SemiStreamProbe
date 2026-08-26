@@ -55,7 +55,7 @@ AnalysisReport
 TextReporter / JsonReporter
 ```
 
-当前已经接通至文本输出；统一报告模型和 JSON Reporter 尚未实现。
+当前已经接通统一 `AnalysisReport`、文本 Reporter 和 JSON Reporter。
 
 ### 3.2 UDP/RTP/H.264
 
@@ -101,7 +101,8 @@ include/semi_stream_probe/core/
   h264_rtp.hpp       Single NAL/STAP-A 解包与 FU-A 重组
 
 include/semi_stream_probe/application/
-  inspect.hpp        Annex-B 检查任务与当前文本结果
+  inspect.hpp        Annex-B 检查任务与原始解析结果
+  report.hpp         统一报告模型及文本/JSON Reporter
 
 src/core/            Core 接口实现
 src/application/     文件检查编排

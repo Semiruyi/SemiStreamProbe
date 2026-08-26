@@ -7,9 +7,7 @@
 #include "semi_stream_probe/core/types.hpp"
 
 #include <fstream>
-#include <iomanip>
 #include <limits>
-#include <sstream>
 #include <utility>
 
 namespace semi_stream_probe::application {
@@ -327,53 +325,95 @@ inspect_file(const std::filesystem::path& path, const InspectOptions& /*options*
     return result;
 }
 
-std::string render_text(const InspectResult& result, const InspectOptions& options) {
-    std::ostringstream output;
-    output << "Codec: H.264/AVC\n";
+AnalysisReport make_annex_b_report(const InspectResult& result,
+                                   const std::filesystem::path& path,
+                                   const InspectOptions& options) {
+    AnalysisReport report;
+    report.analysis = {
+        .kind = AnalysisKind::annex_b,
+        .status = AnalysisStatus::complete,
+    };
+    report.input = {
+        .kind = InputKind::file,
+        .source = path.string(),
+        .bytes_read = static_cast<std::uint64_t>(result.input_size),
+        .datagrams_received = std::nullopt,
+        .duration_us = std::nullopt,
+    };
+
+    report.h264.nal_units = static_cast<std::uint64_t>(result.nal_units.size());
+    report.h264.sps =
+        static_cast<std::uint64_t>(result.sequence_parameter_sets.size());
+    report.h264.pps =
+        static_cast<std::uint64_t>(result.picture_parameter_sets.size());
+    report.h264.slices = static_cast<std::uint64_t>(result.slices.size());
+    report.h264.access_units =
+        static_cast<std::uint64_t>(result.access_units.size());
+    report.h264.idr_access_units = static_cast<std::uint64_t>(
+        result.gop_statistics.idr_access_unit_indices.size());
+    report.h264.leading_non_idr_access_units = static_cast<std::uint64_t>(
+        result.gop_statistics.leading_non_idr_access_units);
+    report.h264.slice_types = {
+        .i = static_cast<std::uint64_t>(result.gop_statistics.kinds.i),
+        .p = static_cast<std::uint64_t>(result.gop_statistics.kinds.p),
+        .b = static_cast<std::uint64_t>(result.gop_statistics.kinds.b),
+        .sp = static_cast<std::uint64_t>(result.gop_statistics.kinds.sp),
+        .si = static_cast<std::uint64_t>(result.gop_statistics.kinds.si),
+        .mixed =
+            static_cast<std::uint64_t>(result.gop_statistics.kinds.mixed),
+    };
+
     if (!result.sequence_parameter_sets.empty()) {
         const auto& sps = result.sequence_parameter_sets.front();
-        output << "Resolution: " << sps.width << 'x' << sps.height << '\n'
-               << "Profile: " << h264_profile_name(sps.profile_idc) << '\n'
-               << "Level: " << h264_level_name(sps) << '\n'
-               << "SPS id: " << sps.seq_parameter_set_id << '\n';
+        report.h264.profile = h264_profile_name(sps.profile_idc);
+        report.h264.level = h264_level_name(sps);
+        report.h264.resolution = ResolutionReport{
+            .width = sps.width,
+            .height = sps.height,
+        };
     }
-    output << "Input bytes: " << result.input_size << '\n'
-           << "NAL units: " << result.nal_units.size() << '\n'
-           << "Slices: " << result.slices.size() << '\n'
-           << "Access units: " << result.access_units.size() << '\n'
-           << "AU slice types: I=" << result.gop_statistics.kinds.i
-           << " P=" << result.gop_statistics.kinds.p
-           << " B=" << result.gop_statistics.kinds.b
-           << " SP=" << result.gop_statistics.kinds.sp
-           << " SI=" << result.gop_statistics.kinds.si
-           << " Mixed=" << result.gop_statistics.kinds.mixed << '\n'
-           << "IDR access units: "
-           << result.gop_statistics.idr_access_unit_indices.size() << '\n';
+
     if (result.gop_statistics.average_idr_interval) {
-        output << std::fixed << std::setprecision(1)
-               << "IDR interval: "
-               << *result.gop_statistics.average_idr_interval
-               << " AU average (min "
-               << *result.gop_statistics.minimum_idr_interval
-               << ", max "
-               << *result.gop_statistics.maximum_idr_interval << ")\n";
-    } else {
-        output << "IDR interval: n/a (need at least two IDR access units)\n";
+        report.h264.idr_interval_au = IdrIntervalReport{
+            .average = *result.gop_statistics.average_idr_interval,
+            .minimum = static_cast<std::uint64_t>(
+                *result.gop_statistics.minimum_idr_interval),
+            .maximum = static_cast<std::uint64_t>(
+                *result.gop_statistics.maximum_idr_interval),
+        };
     }
-    if (result.gop_statistics.leading_non_idr_access_units != 0) {
-        output << "Leading non-IDR access units: "
-               << result.gop_statistics.leading_non_idr_access_units << '\n';
+
+    report.h264.sequence_parameter_sets.reserve(
+        result.sequence_parameter_sets.size());
+    for (const auto& sps : result.sequence_parameter_sets) {
+        report.h264.sequence_parameter_sets.push_back(
+            SequenceParameterSetReport{
+                .id = sps.seq_parameter_set_id,
+                .profile = h264_profile_name(sps.profile_idc),
+                .level = h264_level_name(sps),
+                .resolution = {
+                    .width = sps.width,
+                    .height = sps.height,
+                },
+            });
     }
-    output << "PPS: " << result.picture_parameter_sets.size() << '\n';
+
+    report.h264.picture_parameter_sets.reserve(
+        result.picture_parameter_sets.size());
     for (const auto& pps : result.picture_parameter_sets) {
-        output << "PPS id: " << pps.pic_parameter_set_id
-               << " (SPS " << pps.seq_parameter_set_id << ")\n";
+        report.h264.picture_parameter_sets.push_back(
+            PictureParameterSetReport{
+                .id = pps.pic_parameter_set_id,
+                .sequence_parameter_set_id = pps.seq_parameter_set_id,
+            });
     }
 
     if (!options.nal_list) {
-        return output.str();
+        return report;
     }
 
+    report.h264.nal_list.emplace();
+    report.h264.nal_list->reserve(result.nal_units.size());
     std::vector<const AccessUnit*> access_unit_by_nal(result.nal_units.size(),
                                                       nullptr);
     for (const auto& access_unit : result.access_units) {
@@ -391,41 +431,37 @@ std::string render_text(const InspectResult& result, const InspectOptions& optio
         }
     }
 
-    output << '\n'
-           << std::left << std::setw(12) << "OFFSET" << std::setw(10) << "SIZE"
-           << std::setw(16) << "TYPE" << std::setw(6) << "REF"
-           << std::setw(6) << "AU" << std::setw(8) << "SLICE"
-           << "FRAME_NUM\n";
     for (const auto& unit : result.nal_units) {
-        std::ostringstream offset;
-        offset << "0x" << std::uppercase << std::hex << std::setw(8)
-               << std::setfill('0') << unit.location.start_code_offset;
-        output << std::setfill(' ') << std::left << std::setw(12) << offset.str()
-               << std::setw(10) << unit.location.payload_size << std::setw(16)
-               << nal_unit_type_name(unit.header.nal_unit_type)
-               << std::setw(6)
-               << static_cast<unsigned int>(unit.header.nal_ref_idc);
         const auto* access_unit =
             unit.location.index < access_unit_by_nal.size()
                 ? access_unit_by_nal[unit.location.index]
                 : nullptr;
-        if (access_unit == nullptr) {
-            output << std::setw(6) << "-";
-        } else {
-            output << std::setw(6) << access_unit->index;
-        }
         const auto* inspected_slice = unit.location.index < slice_by_nal.size()
                                           ? slice_by_nal[unit.location.index]
                                           : nullptr;
-        if (inspected_slice == nullptr) {
-            output << std::setw(8) << "-" << "-\n";
-        } else {
-            output << std::setw(8)
-                   << slice_type_name(inspected_slice->header.slice_type)
-                   << inspected_slice->header.frame_num << '\n';
-        }
+        report.h264.nal_list->push_back(NalUnitDetailReport{
+            .index = static_cast<std::uint64_t>(unit.location.index),
+            .byte_offset =
+                static_cast<std::uint64_t>(unit.location.start_code_offset),
+            .size = static_cast<std::uint64_t>(unit.location.payload_size),
+            .type = nal_unit_type_name(unit.header.nal_unit_type),
+            .nal_ref_idc = unit.header.nal_ref_idc,
+            .access_unit = access_unit == nullptr
+                               ? std::nullopt
+                               : std::optional<std::uint64_t>{
+                                     static_cast<std::uint64_t>(
+                                         access_unit->index)},
+            .slice_type = inspected_slice == nullptr
+                              ? std::nullopt
+                              : std::optional<std::string>{slice_type_name(
+                                    inspected_slice->header.slice_type)},
+            .frame_num = inspected_slice == nullptr
+                             ? std::nullopt
+                             : std::optional<std::uint64_t>{
+                                   inspected_slice->header.frame_num},
+        });
     }
-    return output.str();
+    return report;
 }
 
 } // namespace semi_stream_probe::application
