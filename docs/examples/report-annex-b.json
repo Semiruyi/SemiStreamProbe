@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "generator": {
+    "name": "SemiStreamProbe",
+    "version": "0.1.0"
+  },
+  "analysis": {
+    "kind": "annex_b",
+    "status": "complete"
+  },
+  "input": {
+    "kind": "file",
+    "source": "sample.h264",
+    "bytes_read": 22000,
+    "datagrams_received": null,
+    "duration_us": null
+  },
+  "h264": {
+    "codec": "H.264/AVC",
+    "profile": "High",
+    "level": "4.2",
+    "resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "nal_units": 5,
+    "sps": 1,
+    "pps": 1,
+    "slices": 3,
+    "access_units": 3,
+    "idr_access_units": 1,
+    "slice_types": {
+      "i": 1,
+      "p": 2,
+      "b": 0,
+      "sp": 0,
+      "si": 0,
+      "mixed": 0
+    },
+    "idr_interval_au": null,
+    "nal_list": [
+      {
+        "index": 0,
+        "byte_offset": 0,
+        "size": 28,
+        "type": "SPS",
+        "nal_ref_idc": 3,
+        "access_unit": 0,
+        "slice_type": null,
+        "frame_num": null
+      },
+      {
+        "index": 1,
+        "byte_offset": 32,
+        "size": 8,
+        "type": "PPS",
+        "nal_ref_idc": 3,
+        "access_unit": 0,
+        "slice_type": null,
+        "frame_num": null
+      },
+      {
+        "index": 2,
+        "byte_offset": 44,
+        "size": 12000,
+        "type": "IDR_SLICE",
+        "nal_ref_idc": 3,
+        "access_unit": 0,
+        "slice_type": "I",
+        "frame_num": 0
+      },
+      {
+        "index": 3,
+        "byte_offset": 12048,
+        "size": 5200,
+        "type": "NON_IDR_SLICE",
+        "nal_ref_idc": 2,
+        "access_unit": 1,
+        "slice_type": "P",
+        "frame_num": 1
+      },
+      {
+        "index": 4,
+        "byte_offset": 17252,
+        "size": 4744,
+        "type": "NON_IDR_SLICE",
+        "nal_ref_idc": 2,
+        "access_unit": 2,
+        "slice_type": "P",
+        "frame_num": 2
+      }
+    ]
+  },
+  "rtp": null,
+  "diagnostic_summary": {
+    "info": 0,
+    "warning": 0,
+    "error": 0
+  },
+  "diagnostics": []
+}

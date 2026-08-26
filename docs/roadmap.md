@@ -119,7 +119,7 @@ semistreamprobe --version
 - [x] 冻结 `v0.1.0` 范围和非目标；
 - [x] 区分当前能力和目标能力；
 - [x] 冻结 CLI 与退出码；
-- [ ] 定义 `Diagnostic`、`AnalysisReport` 和 JSON 字段；
+- [x] 定义 `Diagnostic`、`AnalysisReport` 和 JSON 字段；
 
 完成条件：实现过程中不再需要扩大协议范围，文本和 JSON 可以共享同一报告模型。
 

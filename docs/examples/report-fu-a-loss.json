@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.0",
+  "generator": {
+    "name": "SemiStreamProbe",
+    "version": "0.1.0"
+  },
+  "analysis": {
+    "kind": "rtp_session",
+    "status": "partial"
+  },
+  "input": {
+    "kind": "udp",
+    "source": "udp://0.0.0.0:5004",
+    "bytes_read": null,
+    "datagrams_received": 7,
+    "duration_us": 120000
+  },
+  "h264": {
+    "codec": "H.264/AVC",
+    "profile": "High",
+    "level": "4.2",
+    "resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "nal_units": 4,
+    "sps": 1,
+    "pps": 1,
+    "slices": 2,
+    "access_units": 2,
+    "idr_access_units": 0,
+    "slice_types": {
+      "i": 0,
+      "p": 2,
+      "b": 0,
+      "sp": 0,
+      "si": 0,
+      "mixed": 0
+    },
+    "idr_interval_au": null,
+    "nal_list": null
+  },
+  "rtp": {
+    "ssrc": 287454020,
+    "payload_type": 96,
+    "clock_rate_hz": 90000,
+    "first_sequence_number": 12028,
+    "last_sequence_number": 12035,
+    "packets_received": 7,
+    "unique_packets_received": 7,
+    "packets_expected": 8,
+    "packets_lost": 1,
+    "duplicate_packets": 0,
+    "out_of_order_packets": 0,
+    "jitter": {
+      "timestamp_units": 90.0,
+      "milliseconds": 1.0
+    }
+  },
+  "diagnostic_summary": {
+    "info": 0,
+    "warning": 0,
+    "error": 3
+  },
+  "diagnostics": [
+    {
+      "severity": "error",
+      "code": "RTP_SEQUENCE_GAP",
+      "summary": "RTP sequence is discontinuous",
+      "evidence": "expected RTP sequence 12031, received 12032; 1 packet is missing",
+      "impact": "one or more media payloads may be unavailable",
+      "recovery": "sequence tracking continued from RTP sequence 12032",
+      "location": {
+        "input_byte_offset": null,
+        "bit_offset": null,
+        "nal_index": null,
+        "rtp_sequence_number": 12032,
+        "ssrc": 287454020,
+        "rtp_timestamp": 90000
+      }
+    },
+    {
+      "severity": "error",
+      "code": "H264_FU_A_SEQUENCE_GAP",
+      "summary": "FU-A sequence is discontinuous",
+      "evidence": "the active FU-A expected RTP sequence 12031 and received 12032",
+      "impact": "the current NAL unit cannot be reconstructed safely",
+      "recovery": "the incomplete NAL was discarded; a later FU-A start can begin a new NAL",
+      "location": {
+        "input_byte_offset": null,
+        "bit_offset": null,
+        "nal_index": null,
+        "rtp_sequence_number": 12032,
+        "ssrc": 287454020,
+        "rtp_timestamp": 90000
+      }
+    },
+    {
+      "severity": "error",
+      "code": "H264_IDR_INCOMPLETE",
+      "summary": "An IDR NAL unit is incomplete",
+      "evidence": "an RTP sequence gap interrupted an FU-A carrying NAL unit type 5",
+      "impact": "the current random-access picture is unavailable and visible corruption may continue",
+      "recovery": "decodable random access requires a later intact IDR with the required parameter sets",
+      "location": {
+        "input_byte_offset": null,
+        "bit_offset": null,
+        "nal_index": null,
+        "rtp_sequence_number": 12032,
+        "ssrc": 287454020,
+        "rtp_timestamp": 90000
+      }
+    }
+  ]
+}

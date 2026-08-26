@@ -87,6 +87,7 @@ AnalysisReport + Diagnostics
 include/semi_stream_probe/core/
   types.hpp          基础字节类型和 ByteView
   parse_error.hpp    结构化解析错误
+  diagnostic.hpp     稳定诊断码、严重程度、证据与位置
   annex_b.hpp        Annex-B 扫描
   nal.hpp            NAL Header
   rbsp.hpp           EBSP 到 RBSP
@@ -205,7 +206,7 @@ AnalysisReport
 ```
 
 Reporter 不重新判断丢包、IDR 影响或恢复条件，避免文本和 JSON 对相同输入给出不同结论。
-JSON 的字段契约会在实现前单独冻结并通过 golden tests 验证。
+JSON 字段已在 [诊断与报告契约](report-contract.md) 中冻结，后续通过 golden tests 验证。
 
 ## 10. 跨平台与运行模型
 

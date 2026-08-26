@@ -132,6 +132,7 @@ Preset 假定 `g++` 和 `ninja` 已位于 `PATH`。查看 CLI 帮助：
 |---|---|
 | [架构设计](docs/architecture.md) | 依赖方向、数据所有权、错误与诊断边界、目标数据流 |
 | [项目路线图](docs/roadmap.md) | v0.1.0 冻结范围、CLI 契约、实现顺序和完成标准 |
+| [报告契约](docs/report-contract.md) | Diagnostic、AnalysisReport、JSON 字段和完整示例 |
 | [测试样本](samples/README.md) | 本地媒体生成方式和样本许可证约束 |
 
 ## 参考标准
