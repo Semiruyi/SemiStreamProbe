@@ -370,6 +370,21 @@ bool H264FuAReassembler::in_progress() const noexcept {
     return active_.has_value();
 }
 
+std::optional<H264FuAReassemblyContext>
+H264FuAReassembler::context() const noexcept {
+    if (!active_) {
+        return std::nullopt;
+    }
+    return H264FuAReassemblyContext{
+        .header = active_->header,
+        .start_sequence_number = active_->start_sequence_number,
+        .expected_sequence_number = active_->expected_sequence_number,
+        .timestamp = active_->timestamp,
+        .ssrc = active_->ssrc,
+        .payload_type = active_->payload_type,
+    };
+}
+
 void H264FuAReassembler::reset() noexcept {
     active_.reset();
 }

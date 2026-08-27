@@ -5,8 +5,8 @@ SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。�
 和实时音视频故障分析。
 
 项目正在收口 `v0.1.0`。H.264 Annex-B 语法解析和 RTP/H.264 负载处理的核心组件已经
-完成；统一报告模型、结构化诊断类型、Annex-B JSON 和确定性 RTP 会话统计已经接通。
-RFC 6184 应用层诊断、实时 UDP 入口和发布材料尚未完成。
+完成；统一报告模型、结构化诊断类型、Annex-B JSON、确定性 RTP 会话统计和 RFC 6184
+流分析已经接通。H.264 语法模型的 RTP 接线、实时 UDP 入口和发布材料尚未完成。
 
 ## 当前可用能力
 
@@ -20,6 +20,8 @@ RFC 6184 应用层诊断、实时 UDP 入口和发布材料尚未完成。
 - 解析 RTP v2 固定头、CSRC、扩展头和 padding；
 - 统计单 SSRC/PT 的序列号回绕、丢包、重复、乱序和 RFC 3550 jitter；
 - 解析 RFC 6184 Single NAL Unit、STAP-A 和 FU-A，并重组连续的 FU-A 分片；
+- 输出拥有内存的完整 RTP NAL，并诊断 FU-A 缺首片、断序、中断、上下文变化和缺尾片；
+- 关联 IDR FU-A 损坏并在后续完整 IDR 到达后继续分析；
 - 通过 CLI 输出 Annex-B 文件文本/JSON 摘要和逐 NAL 列表。
 
 当前 CLI 只接通 Annex-B 文件检查：

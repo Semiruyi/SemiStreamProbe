@@ -39,6 +39,8 @@ std::string_view to_string(DiagnosticCode code) noexcept {
         return "H264_FU_A_SEQUENCE_GAP";
     case DiagnosticCode::h264_fu_a_interrupted:
         return "H264_FU_A_INTERRUPTED";
+    case DiagnosticCode::h264_fu_a_incomplete:
+        return "H264_FU_A_INCOMPLETE";
     case DiagnosticCode::h264_fu_a_context_changed:
         return "H264_FU_A_CONTEXT_CHANGED";
     case DiagnosticCode::h264_parameter_set_not_found:

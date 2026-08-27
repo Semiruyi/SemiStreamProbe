@@ -58,6 +58,15 @@ struct H264ReassembledNalUnit {
     bool marker{false};
 };
 
+struct H264FuAReassemblyContext {
+    NalHeader header;
+    std::uint16_t start_sequence_number{0};
+    std::uint16_t expected_sequence_number{0};
+    std::uint32_t timestamp{0};
+    std::uint32_t ssrc{0};
+    std::uint8_t payload_type{0};
+};
+
 // Classifies an RFC 6184 payload from the NAL unit type in its first byte.
 [[nodiscard]] std::expected<H264RtpPayloadHeader, ParseError>
 parse_h264_rtp_payload_header(ByteView payload);
@@ -92,6 +101,8 @@ public:
     push(const RtpPacket& packet);
 
     [[nodiscard]] bool in_progress() const noexcept;
+    [[nodiscard]] std::optional<H264FuAReassemblyContext>
+    context() const noexcept;
     void reset() noexcept;
 
 private:

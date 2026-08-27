@@ -26,6 +26,7 @@ enum class DiagnosticCode {
     h264_fu_a_missing_start,
     h264_fu_a_sequence_gap,
     h264_fu_a_interrupted,
+    h264_fu_a_incomplete,
     h264_fu_a_context_changed,
     h264_parameter_set_not_found,
     h264_idr_incomplete,

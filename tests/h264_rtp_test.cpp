@@ -340,6 +340,16 @@ void test_fu_a_reassembly_and_sequence_wrap() {
     check(start.has_value() && !start->has_value(),
           "FU-A start should begin without producing a NAL");
     check(reassembler.in_progress(), "FU-A reassembly is active after start");
+    const auto context = reassembler.context();
+    check(context.has_value(), "active FU-A exposes read-only context");
+    if (context) {
+        check(context->header.nal_unit_type == 5, "FU-A context NAL type");
+        check(context->start_sequence_number == 65'534,
+              "FU-A context start sequence");
+        check(context->expected_sequence_number == 65'535,
+              "FU-A context expected sequence");
+        check(context->timestamp == 90'000, "FU-A context timestamp");
+    }
 
     const auto middle = reassembler.push(
         make_rtp_packet(middle_payload, 65'535));
@@ -351,6 +361,8 @@ void test_fu_a_reassembly_and_sequence_wrap() {
     check(end.has_value() && end->has_value(),
           "FU-A end should produce a complete NAL");
     check(!reassembler.in_progress(), "FU-A state clears after completion");
+    check(!reassembler.context().has_value(),
+          "completed FU-A clears read-only context");
     if (!end || !*end) {
         return;
     }

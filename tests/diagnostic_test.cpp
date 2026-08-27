@@ -56,6 +56,8 @@ void test_stable_code_strings() {
                   std::string_view{"H264_FU_A_SEQUENCE_GAP"}},
         std::pair{DiagnosticCode::h264_fu_a_interrupted,
                   std::string_view{"H264_FU_A_INTERRUPTED"}},
+        std::pair{DiagnosticCode::h264_fu_a_incomplete,
+                  std::string_view{"H264_FU_A_INCOMPLETE"}},
         std::pair{DiagnosticCode::h264_fu_a_context_changed,
                   std::string_view{"H264_FU_A_CONTEXT_CHANGED"}},
         std::pair{DiagnosticCode::h264_parameter_set_not_found,

@@ -87,6 +87,7 @@ struct Diagnostic {
 | `H264_FU_A_MISSING_START` | error | continuation/end 到达时没有活动起始片 |
 | `H264_FU_A_SEQUENCE_GAP` | error | FU-A 重组期间序列号不连续，当前 NAL 被丢弃 |
 | `H264_FU_A_INTERRUPTED` | error | 前一个 FU-A 未完成便收到新的起始片 |
+| `H264_FU_A_INCOMPLETE` | error | 输入或监听结束时仍有未收到结束片的 FU-A |
 | `H264_FU_A_CONTEXT_CHANGED` | error | FU-A 内 SSRC、timestamp、PT、NRI 或 NAL 类型变化 |
 | `H264_PARAMETER_SET_NOT_FOUND` | error | Slice 引用不存在或尚未激活的参数集 |
 | `H264_IDR_INCOMPLETE` | error | 已确定不完整的 FU-A 承载 IDR NAL |
