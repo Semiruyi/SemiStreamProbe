@@ -2,6 +2,7 @@
 
 #include "semi_stream_probe/core/diagnostic.hpp"
 #include "semi_stream_probe/core/h264_rtp.hpp"
+#include "semi_stream_probe/core/h264_stream_model.hpp"
 #include "semi_stream_probe/core/rtp_stream_analyzer.hpp"
 #include "semi_stream_probe/core/types.hpp"
 
@@ -56,10 +57,13 @@ public:
     rtp_statistics() const noexcept;
     [[nodiscard]] const H264RtpStreamStatistics&
     h264_statistics() const noexcept;
+    [[nodiscard]] const H264StreamModelStatistics&
+    stream_statistics() const noexcept;
     [[nodiscard]] std::span<const Diagnostic> diagnostics() const noexcept;
 
 private:
     void copy_new_rtp_diagnostics();
+    void copy_new_stream_diagnostics();
     void record_fu_failure(DiagnosticCode code,
                            std::string summary,
                            std::string evidence,
@@ -77,9 +81,11 @@ private:
 
     RtpStreamAnalyzer rtp_analyzer_;
     H264FuAReassembler fu_a_reassembler_;
+    H264StreamModel stream_model_;
     H264RtpStreamStatistics statistics_;
     std::vector<Diagnostic> diagnostics_;
     std::size_t copied_rtp_diagnostic_count_{0};
+    std::size_t copied_stream_diagnostic_count_{0};
 };
 
 } // namespace semi_stream_probe

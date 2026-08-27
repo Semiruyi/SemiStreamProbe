@@ -60,6 +60,8 @@ void test_stable_code_strings() {
                   std::string_view{"H264_FU_A_INCOMPLETE"}},
         std::pair{DiagnosticCode::h264_fu_a_context_changed,
                   std::string_view{"H264_FU_A_CONTEXT_CHANGED"}},
+        std::pair{DiagnosticCode::h264_syntax_invalid,
+                  std::string_view{"H264_SYNTAX_INVALID"}},
         std::pair{DiagnosticCode::h264_parameter_set_not_found,
                   std::string_view{"H264_PARAMETER_SET_NOT_FOUND"}},
         std::pair{DiagnosticCode::h264_idr_incomplete,

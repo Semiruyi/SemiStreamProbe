@@ -218,6 +218,15 @@ std::vector<DepacketizedH264NalUnit> H264RtpStreamAnalyzer::push(
         if (nal.header.nal_unit_type == 5) {
             ++statistics_.completed_idr_nal_units;
         }
+        stream_model_.push(
+            nal.bytes,
+            H264NalSourceContext{
+                .input_byte_offset = std::nullopt,
+                .rtp_sequence_number = nal.end_sequence_number,
+                .ssrc = nal.ssrc,
+                .rtp_timestamp = nal.timestamp,
+            });
+        copy_new_stream_diagnostics();
         output.push_back(DepacketizedH264NalUnit{
             .header = nal.header,
             .bytes = std::move(nal.bytes),
@@ -246,19 +255,20 @@ std::vector<DepacketizedH264NalUnit> H264RtpStreamAnalyzer::push(
 
 void H264RtpStreamAnalyzer::finish() {
     const auto context = fu_a_reassembler_.context();
-    if (!context) {
-        return;
+    if (context) {
+        record_fu_failure(
+            DiagnosticCode::h264_fu_a_incomplete,
+            "FU-A did not complete before the analysis ended",
+            "FU-A starting at RTP sequence " +
+                std::to_string(context->start_sequence_number) +
+                " was still waiting for RTP sequence " +
+                std::to_string(context->expected_sequence_number),
+            "the incomplete NAL was discarded",
+            *context, context->start_sequence_number);
+        fu_a_reassembler_.reset();
     }
-    record_fu_failure(
-        DiagnosticCode::h264_fu_a_incomplete,
-        "FU-A did not complete before the analysis ended",
-        "FU-A starting at RTP sequence " +
-            std::to_string(context->start_sequence_number) +
-            " was still waiting for RTP sequence " +
-            std::to_string(context->expected_sequence_number),
-        "the incomplete NAL was discarded",
-        *context, context->start_sequence_number);
-    fu_a_reassembler_.reset();
+    stream_model_.finish();
+    copy_new_stream_diagnostics();
 }
 
 const RtpSessionStatistics&
@@ -271,6 +281,11 @@ H264RtpStreamAnalyzer::h264_statistics() const noexcept {
     return statistics_;
 }
 
+const H264StreamModelStatistics&
+H264RtpStreamAnalyzer::stream_statistics() const noexcept {
+    return stream_model_.statistics();
+}
+
 std::span<const Diagnostic>
 H264RtpStreamAnalyzer::diagnostics() const noexcept {
     return diagnostics_;
@@ -281,6 +296,14 @@ void H264RtpStreamAnalyzer::copy_new_rtp_diagnostics() {
     while (copied_rtp_diagnostic_count_ < source.size()) {
         diagnostics_.push_back(source[copied_rtp_diagnostic_count_]);
         ++copied_rtp_diagnostic_count_;
+    }
+}
+
+void H264RtpStreamAnalyzer::copy_new_stream_diagnostics() {
+    const auto source = stream_model_.diagnostics();
+    while (copied_stream_diagnostic_count_ < source.size()) {
+        diagnostics_.push_back(source[copied_stream_diagnostic_count_]);
+        ++copied_stream_diagnostic_count_;
     }
 }
 
@@ -342,6 +365,15 @@ void H264RtpStreamAnalyzer::append_complete_nal(
     if (header.nal_unit_type == 5) {
         ++statistics_.completed_idr_nal_units;
     }
+    stream_model_.push(
+        owned_bytes,
+        H264NalSourceContext{
+            .input_byte_offset = std::nullopt,
+            .rtp_sequence_number = packet.sequence_number,
+            .ssrc = packet.ssrc,
+            .rtp_timestamp = packet.timestamp,
+        });
+    copy_new_stream_diagnostics();
     output.push_back(DepacketizedH264NalUnit{
         .header = header,
         .bytes = std::move(owned_bytes),

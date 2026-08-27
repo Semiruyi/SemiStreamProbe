@@ -20,9 +20,7 @@
 
 尚未闭环：
 
-- RTP 核心组件尚未进入应用层和 CLI；
-- RTP 完整 NAL 尚未接入参数集、Slice、Access Unit、GOP 和统一报告；
-- `ParseError` 尚未在 RTP 会话中转换为可累计、可恢复的诊断事件；
+- 纯内存 RTP/H.264 分析和统一报告已闭环，尚未接入真实 UDP 输入和 CLI；
 - 尚无 UDP 输入、故障注入演示、CI 和 Release。
 
 ## 2. 冻结范围
@@ -108,8 +106,9 @@ semistreamprobe --version
 10. 前一个 FU-A 未完成便出现新的起始片；
 11. 输入结束时 FU-A 仍缺少结束片；
 12. FU-A 内 SSRC、timestamp、Payload Type 或 NAL Header 变化；
-13. Slice 引用不存在或尚未激活的参数集；
-14. IDR NAL 重组失败，以及等待后续完整 IDR 的恢复边界。
+13. 完整 SPS、PPS 或 Slice NAL 的语法非法；
+14. Slice 引用不存在或尚未激活的参数集；
+15. IDR NAL 重组失败，以及等待后续完整 IDR 的恢复边界。
 
 每条诊断至少包含：
 
@@ -141,6 +140,9 @@ semistreamprobe --version
 - [x] 将可恢复的 RTP/RFC 6184 解析错误转换为诊断并继续分析；
 
 完成条件：由内存字节和显式到达时间驱动的测试可以复现全部 RTP 诊断，不依赖真实网络。
+
+当前状态：已完成。正常 RTP、参数集缺失后恢复、IDR FU-A 丢片及后续 IDR 恢复均已进入
+统一 `AnalysisReport` 测试。
 
 ### Milestone C：报告与 CLI
 

@@ -43,6 +43,8 @@ std::string_view to_string(DiagnosticCode code) noexcept {
         return "H264_FU_A_INCOMPLETE";
     case DiagnosticCode::h264_fu_a_context_changed:
         return "H264_FU_A_CONTEXT_CHANGED";
+    case DiagnosticCode::h264_syntax_invalid:
+        return "H264_SYNTAX_INVALID";
     case DiagnosticCode::h264_parameter_set_not_found:
         return "H264_PARAMETER_SET_NOT_FOUND";
     case DiagnosticCode::h264_idr_incomplete:

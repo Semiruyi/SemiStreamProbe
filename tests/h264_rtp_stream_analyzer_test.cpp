@@ -125,7 +125,16 @@ void test_complete_fu_a() {
           "FU-A packet count");
     check(analyzer.h264_statistics().completed_idr_nal_units == 1,
           "completed IDR NAL count");
-    check(analyzer.diagnostics().empty(), "valid FU-A has no diagnostics");
+    check(count_diagnostic(
+              analyzer,
+              semi_stream_probe::DiagnosticCode::h264_rtp_invalid_payload) ==
+              0,
+          "valid FU-A has no transport payload diagnostic");
+    check(count_diagnostic(
+              analyzer,
+              semi_stream_probe::DiagnosticCode::
+                  h264_parameter_set_not_found) == 1,
+          "synthetic IDR is rejected only for its missing parameter sets");
 }
 
 void test_idr_gap_and_recovery() {

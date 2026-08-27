@@ -78,8 +78,9 @@ NAL / H.264 stream model
 AnalysisReport + Diagnostics
 ```
 
-当前已经实现 RTP 包解析、确定性 `RtpStreamAnalyzer`、三类 RFC 6184 负载处理，以及
-FU-A/IDR 流诊断；H.264 语法模型接线、UDP 适配器及报告接线是 `v0.1.0` 的主要剩余工作。
+当前已经实现 RTP 包解析、确定性 `RtpStreamAnalyzer`、三类 RFC 6184 负载处理、
+FU-A/IDR 流诊断，以及 H.264 语法模型和统一报告接线；UDP 适配器是 `v0.1.0` 的主要
+剩余功能。
 
 ## 4. 当前目录职责
 
@@ -101,10 +102,12 @@ include/semi_stream_probe/core/
   rtp_stream_analyzer.hpp  单 SSRC/PT 连续性统计与 jitter
   h264_rtp.hpp       Single NAL/STAP-A 解包与 FU-A 重组
   h264_rtp_stream_analyzer.hpp  RFC 6184 流分析、完整 NAL 与 FU-A/IDR 诊断
+  h264_stream_model.hpp  增量参数集、Slice、Access Unit 和 GOP 模型
 
 include/semi_stream_probe/application/
   inspect.hpp        Annex-B 检查任务与原始解析结果
   report.hpp         统一报告模型及文本/JSON Reporter
+  rtp_analysis.hpp   RTP/H.264 核心统计到统一报告的映射
 
 src/core/            Core 接口实现
 src/application/     文件检查编排
