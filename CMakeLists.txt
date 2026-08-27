@@ -110,6 +110,19 @@ target_compile_features(semistreamprobe PRIVATE cxx_std_23)
 ssp_enable_warnings(semistreamprobe)
 ssp_use_portable_mingw_runtime(semistreamprobe)
 
+add_executable(semistreamprobe_demo
+    tools/rtp_demo.cpp
+)
+
+target_link_libraries(semistreamprobe_demo
+    PRIVATE
+        semi_stream_probe_infrastructure
+)
+
+target_compile_features(semistreamprobe_demo PRIVATE cxx_std_23)
+ssp_enable_warnings(semistreamprobe_demo)
+ssp_use_portable_mingw_runtime(semistreamprobe_demo)
+
 include(CTest)
 
 if(BUILD_TESTING AND SSP_BUILD_TESTS)
@@ -404,6 +417,11 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
     add_test(
         NAME semistreamprobe_version
         COMMAND semistreamprobe --version
+    )
+
+    add_test(
+        NAME semistreamprobe_demo_help
+        COMMAND semistreamprobe_demo --help
     )
 endif()
 

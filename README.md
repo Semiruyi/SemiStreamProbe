@@ -37,6 +37,9 @@ semistreamprobe listen --udp 0.0.0.0:5004 --payload-type 96 --duration 10
 semistreamprobe listen --udp 0.0.0.0:5004 --payload-type 96 --output json
 ```
 
+无需下载媒体即可运行正常 RTP 和 IDR FU-A 丢片演示；生成器、双终端命令和预期诊断见
+[测试样本与故障注入](samples/README.md)。
+
 示例输出：
 
 ```text

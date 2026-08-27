@@ -150,8 +150,8 @@ semistreamprobe --version
 
 ### Milestone D：验证与故障注入
 
-- [ ] 正常 Annex-B 与 RTP 样本；
-- [ ] FU-A 丢首片、丢中片和丢尾片；
+- [x] 正常 Annex-B 与 RTP 确定性样本；
+- [x] FU-A 丢首片、丢中片和丢尾片；
 - [ ] 丢包、重复、乱序和序列号回绕；
 - [ ] 与 FFmpeg/ffprobe 和 Wireshark 交叉验证；
 - [ ] Linux ASan/UBSan；
@@ -165,7 +165,7 @@ semistreamprobe --version
 - [ ] 确定项目许可证；
 - [ ] Windows 和 Linux CI；
 - [ ] Windows x64 便携包；
-- [ ] 正常流与 IDR FU-A 丢片的一分钟演示；
+- [x] 正常流与 IDR FU-A 丢片的一分钟演示；
 - [ ] GitHub Release、SHA-256 和完整使用说明；
 
 完成条件：新用户下载 Release 后，可以在一分钟内完成一次正常分析和一次故障分析。
