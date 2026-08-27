@@ -16,12 +16,12 @@
 - FU-A 连续分片重组、序列号回绕和错误状态清理；
 - Annex-B 摘要、逐 NAL 列表、统一报告模型和文本/JSON 输出；
 - 稳定的 `Diagnostic` 类型、严重程度和首版诊断码；
+- 跨平台 UDP 接收、单调时钟到达时间和 `listen --udp`；
 - `--version` 及当前 CLI 的稳定退出码。
 
 尚未闭环：
 
-- 纯内存 RTP/H.264 分析和统一报告已闭环，尚未接入真实 UDP 输入和 CLI；
-- 尚无 UDP 输入、故障注入演示、CI 和 Release。
+- 尚无完整故障注入样本、交叉验证、CI 和 Release。
 
 ## 2. 冻结范围
 
@@ -53,17 +53,7 @@
 
 ## 3. CLI 契约
 
-当前已经实现：
-
-```text
-semistreamprobe inspect <file.h264>
-    [--nal-list]
-    [--output text|json]
-
-semistreamprobe --version
-```
-
-`v0.1.0` 目标接口：
+当前接口：
 
 ```text
 semistreamprobe inspect <file.h264>
@@ -149,11 +139,14 @@ semistreamprobe --version
 - [x] 实现统一报告模型；
 - [x] 实现文本报告；
 - [x] 实现 JSON 报告；
-- [ ] 实现跨平台 UDP 输入；
-- [ ] 接通 `listen --udp`；
+- [x] 实现跨平台 UDP 输入；
+- [x] 接通 `listen --udp`；
 - [x] 增加 `--version` 和稳定退出码；
 
 完成条件：Annex-B 和 UDP 两条入口均能生成语义一致的文本或 JSON 报告。
+
+当前状态：已完成。Windows 本机 UDP datagram 已通过 CLI 进入 RTP/H.264 分析并生成 JSON
+报告；平台差异封装在输入适配器中。
 
 ### Milestone D：验证与故障注入
 

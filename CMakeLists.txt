@@ -55,8 +55,30 @@ target_include_directories(semi_stream_probe_core
 target_compile_features(semi_stream_probe_core PUBLIC cxx_std_23)
 ssp_enable_warnings(semi_stream_probe_core)
 
+add_library(semi_stream_probe_infrastructure STATIC
+    src/infrastructure/udp_receiver.cpp
+)
+
+target_include_directories(semi_stream_probe_infrastructure
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(semi_stream_probe_infrastructure
+    PUBLIC
+        semi_stream_probe_core
+)
+
+if(WIN32)
+    target_link_libraries(semi_stream_probe_infrastructure PUBLIC ws2_32)
+endif()
+
+target_compile_features(semi_stream_probe_infrastructure PUBLIC cxx_std_23)
+ssp_enable_warnings(semi_stream_probe_infrastructure)
+
 add_library(semi_stream_probe_application STATIC
     src/application/inspect.cpp
+    src/application/listen.cpp
     src/application/report.cpp
     src/application/rtp_analysis.cpp
 )
@@ -69,6 +91,7 @@ target_include_directories(semi_stream_probe_application
 target_link_libraries(semi_stream_probe_application
     PUBLIC
         semi_stream_probe_core
+        semi_stream_probe_infrastructure
 )
 
 target_compile_features(semi_stream_probe_application PUBLIC cxx_std_23)
@@ -361,6 +384,21 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
     add_test(
         NAME semi_stream_probe_rtp_analysis_tests
         COMMAND semi_stream_probe_rtp_analysis_tests
+    )
+
+    add_executable(semi_stream_probe_udp_listener_tests
+        tests/udp_listener_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_udp_listener_tests
+        PRIVATE
+            semi_stream_probe_application
+    )
+    target_compile_features(semi_stream_probe_udp_listener_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_udp_listener_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_udp_listener_tests)
+    add_test(
+        NAME semi_stream_probe_udp_listener_tests
+        COMMAND semi_stream_probe_udp_listener_tests
     )
 
     add_test(

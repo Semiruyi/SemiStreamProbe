@@ -78,9 +78,9 @@ NAL / H.264 stream model
 AnalysisReport + Diagnostics
 ```
 
-当前已经实现 RTP 包解析、确定性 `RtpStreamAnalyzer`、三类 RFC 6184 负载处理、
-FU-A/IDR 流诊断，以及 H.264 语法模型和统一报告接线；UDP 适配器是 `v0.1.0` 的主要
-剩余功能。
+当前已经实现跨平台 UDP 接收、RTP 包解析、确定性 `RtpStreamAnalyzer`、三类 RFC 6184
+负载处理、FU-A/IDR 流诊断，以及 H.264 语法模型和统一报告接线。`v0.1.0` 的剩余工作
+集中在故障注入、交叉验证、CI 和发布验收。
 
 ## 4. 当前目录职责
 
@@ -106,11 +106,16 @@ include/semi_stream_probe/core/
 
 include/semi_stream_probe/application/
   inspect.hpp        Annex-B 检查任务与原始解析结果
+  listen.hpp         UDP/RTP/H.264 监听任务
   report.hpp         统一报告模型及文本/JSON Reporter
   rtp_analysis.hpp   RTP/H.264 核心统计到统一报告的映射
 
+include/semi_stream_probe/infrastructure/
+  udp_receiver.hpp   跨平台 UDP 端点解析和 datagram 接收
+
 src/core/            Core 接口实现
-src/application/     文件检查编排
+src/application/     文件检查与 UDP 监听编排
+src/infrastructure/  Winsock/POSIX socket 适配
 src/cli/             命令行入口
 tests/               无第三方测试框架的确定性测试
 ```

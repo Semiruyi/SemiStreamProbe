@@ -5,8 +5,8 @@ SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。�
 和实时音视频故障分析。
 
 项目正在收口 `v0.1.0`。H.264 Annex-B 语法解析和 RTP/H.264 负载处理的核心组件已经
-完成；统一报告模型、Annex-B JSON，以及从 RTP 会话统计、RFC 6184 解包到 H.264
-SPS/PPS/Slice、Access Unit、GOP 和诊断报告的纯内存链路已经接通。实时 UDP 入口和发布
+完成；统一报告模型、Annex-B JSON，以及从 UDP 接收、RTP 会话统计、RFC 6184 解包到
+H.264 SPS/PPS/Slice、Access Unit、GOP 和诊断报告的链路已经接通。验证样本、CI 和发布
 材料尚未完成。
 
 ## 当前可用能力
@@ -24,14 +24,17 @@ SPS/PPS/Slice、Access Unit、GOP 和诊断报告的纯内存链路已经接通�
 - 输出拥有内存的完整 RTP NAL，并诊断 FU-A 缺首片、断序、中断、上下文变化和缺尾片；
 - 关联 IDR FU-A 损坏并在后续完整 IDR 到达后继续分析；
 - 将 RTP NAL 增量接入参数集、Slice、Access Unit 和 GOP，并生成统一文本/JSON 报告；
-- 通过 CLI 输出 Annex-B 文件文本/JSON 摘要和逐 NAL 列表。
+- 通过 CLI 输出 Annex-B 文件文本/JSON 摘要和逐 NAL 列表；
+- 跨平台监听 UDP/RTP/H.264，支持定时或 Ctrl+C 结束并输出统一报告。
 
-当前 CLI 只接通 Annex-B 文件检查：
+当前 CLI：
 
 ```powershell
 semistreamprobe inspect sample.h264
 semistreamprobe inspect sample.h264 --nal-list
 semistreamprobe inspect sample.h264 --output json
+semistreamprobe listen --udp 0.0.0.0:5004 --payload-type 96 --duration 10
+semistreamprobe listen --udp 0.0.0.0:5004 --payload-type 96 --output json
 ```
 
 示例输出：
