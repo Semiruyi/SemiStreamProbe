@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-msvc:
+    name: Windows / MSVC / Release
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Configure
+        run: cmake -S . -B build/ci-windows -A x64 -DSSP_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build/ci-windows --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build/ci-windows -C Release --output-on-failure
+
+  linux-sanitizers:
+    name: Linux / GCC / ASan+UBSan
+    runs-on: ubuntu-latest
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Configure
+        run: cmake --preset linux-sanitizers
+
+      - name: Build
+        run: cmake --build --preset linux-sanitizers --parallel
+
+      - name: Test
+        run: ctest --preset linux-sanitizers

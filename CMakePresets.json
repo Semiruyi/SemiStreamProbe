@@ -35,6 +35,23 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "linux-sanitizers",
+      "displayName": "SemiStreamProbe Linux ASan/UBSan",
+      "description": "Debug build with AddressSanitizer and UndefinedBehaviorSanitizer.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-sanitizers",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "SSP_BUILD_TESTS": "ON",
+        "SSP_ENABLE_SANITIZERS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -45,6 +62,15 @@
     {
       "name": "mingw-release",
       "configurePreset": "mingw-release"
+    },
+    {
+      "name": "linux-sanitizers",
+      "configurePreset": "linux-sanitizers",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
     }
   ],
   "testPresets": [
@@ -58,6 +84,18 @@
     {
       "name": "mingw-release",
       "configurePreset": "mingw-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-sanitizers",
+      "configurePreset": "linux-sanitizers",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
       "output": {
         "outputOnFailure": true
       }

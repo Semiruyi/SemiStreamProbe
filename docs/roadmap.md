@@ -154,7 +154,7 @@ semistreamprobe --version
 - [x] FU-A 丢首片、丢中片和丢尾片；
 - [x] 丢包、重复、乱序和序列号回绕；
 - [ ] 与 FFmpeg/ffprobe 和 Wireshark 交叉验证；
-- [ ] Linux ASan/UBSan；
+- [ ] Linux ASan/UBSan（配置已完成，等待 CI 验收）；
 - [ ] 至少一个解析器 fuzz target 和固定语料冒烟；
 - [ ] 1080p30 RTP 连续监听 30 分钟；
 
@@ -162,8 +162,8 @@ semistreamprobe --version
 
 ### Milestone E：v0.1.0 发布
 
-- [ ] 确定项目许可证；
-- [ ] Windows 和 Linux CI；
+- [x] 确定项目许可证（MIT）；
+- [ ] Windows/MSVC 和 Linux/GCC CI（工作流已完成，等待首次通过）；
 - [ ] Windows x64 便携包；
 - [x] 正常流与 IDR FU-A 丢片的一分钟演示；
 - [ ] GitHub Release、SHA-256 和完整使用说明；

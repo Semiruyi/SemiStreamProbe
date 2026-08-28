@@ -7,6 +7,24 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(SSP_BUILD_TESTS "Build SemiStreamProbe tests" ON)
+option(SSP_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+add_library(semi_stream_probe_sanitizers INTERFACE)
+
+if(SSP_ENABLE_SANITIZERS)
+    if(WIN32 OR NOT CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(FATAL_ERROR
+            "SSP_ENABLE_SANITIZERS requires GCC or Clang on a non-Windows platform"
+        )
+    endif()
+    target_compile_options(semi_stream_probe_sanitizers INTERFACE
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+    )
+    target_link_options(semi_stream_probe_sanitizers INTERFACE
+        -fsanitize=address,undefined
+    )
+endif()
 
 function(ssp_enable_warnings target)
     if(MSVC)
@@ -57,6 +75,11 @@ ssp_enable_warnings(semi_stream_probe_core)
 
 add_library(semi_stream_probe_infrastructure STATIC
     src/infrastructure/udp_receiver.cpp
+)
+
+target_link_libraries(semi_stream_probe_core
+    PUBLIC
+        semi_stream_probe_sanitizers
 )
 
 target_include_directories(semi_stream_probe_infrastructure

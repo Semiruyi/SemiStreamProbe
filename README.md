@@ -139,6 +139,16 @@ Preset 假定 `g++` 和 `ninja` 已位于 `PATH`。查看 CLI 帮助：
 .\build\mingw-debug\semistreamprobe.exe --help
 ```
 
+Linux 上的 ASan/UBSan 验证：
+
+```bash
+cmake --preset linux-sanitizers
+cmake --build --preset linux-sanitizers
+ctest --preset linux-sanitizers
+```
+
+GitHub Actions 同时运行 Windows/MSVC Release 和 Linux/GCC ASan+UBSan 两条流水线。
+
 ## 文档
 
 | 文档 | 内容 |
@@ -159,5 +169,5 @@ Preset 假定 `g++` 和 `ninja` 已位于 `PATH`。查看 CLI 帮助：
 
 ## 许可证
 
-项目许可证将在 `v0.1.0` 发布前确定。在许可证确定之前，请不要假定本仓库内容允许
-复制、修改或重新分发。
+项目使用 [MIT License](LICENSE)。第三方标准、工具和本地媒体样本仍分别受其自身条款
+约束。
