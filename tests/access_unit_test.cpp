@@ -86,7 +86,7 @@ void test_picture_boundary_conditions() {
           "different IDR picture ids split access units");
 
     candidate = first;
-    candidate.colour_plane_id = 2;
+    candidate.colour_plane_id = std::uint8_t{2};
     check(!semi_stream_probe::starts_new_primary_coded_picture(first, candidate),
           "separate colour planes remain in one coded picture");
 }

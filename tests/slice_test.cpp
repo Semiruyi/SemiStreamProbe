@@ -90,8 +90,9 @@ void test_idr_frame_slice() {
           "IDR parameter set references");
     check(result->frame_num == 0 && result->idr, "IDR frame number and flag");
     check(result->nal_ref_idc == 3, "IDR reference priority is retained");
-    check(result->idr_pic_id == 2, "IDR picture id");
-    check(result->pic_order_cnt_lsb == 6, "IDR picture order count");
+    check(result->idr_pic_id == std::uint32_t{2}, "IDR picture id");
+    check(result->pic_order_cnt_lsb == std::uint32_t{6},
+          "IDR picture order count");
     check(std::string_view(semi_stream_probe::slice_type_name(
               result->slice_type)) == "I",
           "I slice type name");
