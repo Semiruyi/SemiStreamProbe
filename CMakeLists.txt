@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(SSP_BUILD_TESTS "Build SemiStreamProbe tests" ON)
+option(SSP_BUILD_FUZZERS "Build libFuzzer targets (requires Clang)" OFF)
 option(SSP_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 add_library(semi_stream_probe_sanitizers INTERFACE)
@@ -146,6 +147,31 @@ target_compile_features(semistreamprobe_demo PRIVATE cxx_std_23)
 ssp_enable_warnings(semistreamprobe_demo)
 ssp_use_portable_mingw_runtime(semistreamprobe_demo)
 
+if(SSP_BUILD_FUZZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(FATAL_ERROR "SSP_BUILD_FUZZERS requires Clang with libFuzzer support")
+    endif()
+    if(NOT SSP_ENABLE_SANITIZERS)
+        message(FATAL_ERROR
+            "SSP_BUILD_FUZZERS requires SSP_ENABLE_SANITIZERS=ON so the core is instrumented"
+        )
+    endif()
+
+    add_executable(semi_stream_probe_annex_b_fuzzer
+        fuzz/annex_b_fuzz.cpp
+    )
+    target_link_libraries(semi_stream_probe_annex_b_fuzzer
+        PRIVATE
+            semi_stream_probe_core
+    )
+    target_compile_features(semi_stream_probe_annex_b_fuzzer PRIVATE cxx_std_23)
+    target_compile_options(semi_stream_probe_annex_b_fuzzer PRIVATE -fsanitize=fuzzer)
+    target_link_options(semi_stream_probe_annex_b_fuzzer PRIVATE
+        -fsanitize=fuzzer
+    )
+    ssp_enable_warnings(semi_stream_probe_annex_b_fuzzer)
+endif()
+
 include(CTest)
 
 if(BUILD_TESTING AND SSP_BUILD_TESTS)
@@ -180,6 +206,22 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
     add_test(
         NAME semi_stream_probe_annex_b_tests
         COMMAND semi_stream_probe_annex_b_tests
+    )
+
+    add_executable(semi_stream_probe_annex_b_fuzz_smoke_tests
+        fuzz/annex_b_fuzz.cpp
+        tests/annex_b_fuzz_smoke_test.cpp
+    )
+    target_link_libraries(semi_stream_probe_annex_b_fuzz_smoke_tests
+        PRIVATE
+            semi_stream_probe_core
+    )
+    target_compile_features(semi_stream_probe_annex_b_fuzz_smoke_tests PRIVATE cxx_std_23)
+    ssp_enable_warnings(semi_stream_probe_annex_b_fuzz_smoke_tests)
+    ssp_use_portable_mingw_runtime(semi_stream_probe_annex_b_fuzz_smoke_tests)
+    add_test(
+        NAME semi_stream_probe_annex_b_fuzz_smoke_tests
+        COMMAND semi_stream_probe_annex_b_fuzz_smoke_tests
     )
 
     add_executable(semi_stream_probe_nal_tests

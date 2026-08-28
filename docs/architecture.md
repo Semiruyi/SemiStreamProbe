@@ -80,7 +80,7 @@ AnalysisReport + Diagnostics
 
 当前已经实现跨平台 UDP 接收、RTP 包解析、确定性 `RtpStreamAnalyzer`、三类 RFC 6184
 负载处理、FU-A/IDR 流诊断，以及 H.264 语法模型和统一报告接线。`v0.1.0` 的剩余工作
-集中在故障注入、交叉验证、CI 和发布验收。
+集中在工具交叉验证、长时监听和发布验收。
 
 ## 4. 当前目录职责
 

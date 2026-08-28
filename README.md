@@ -6,8 +6,8 @@ SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。�
 
 项目正在收口 `v0.1.0`。H.264 Annex-B 语法解析和 RTP/H.264 负载处理的核心组件已经
 完成；统一报告模型、Annex-B JSON，以及从 UDP 接收、RTP 会话统计、RFC 6184 解包到
-H.264 SPS/PPS/Slice、Access Unit、GOP 和诊断报告的链路已经接通。验证样本、CI 和发布
-材料尚未完成。
+H.264 SPS/PPS/Slice、Access Unit、GOP 和诊断报告的链路已经接通。确定性验证样本、CI
+和发布前安全检查已经完成；剩余工作是工具交叉验证、长时监听和发布材料。
 
 ## 当前可用能力
 
@@ -148,6 +148,21 @@ ctest --preset linux-sanitizers
 ```
 
 GitHub Actions 同时运行 Windows/MSVC Release 和 Linux/GCC ASan+UBSan 两条流水线。
+
+使用 Clang/libFuzzer 对 Annex-B 到 H.264 流模型的完整解析路径做持续 fuzz：
+
+```bash
+cmake -S . -B build/linux-fuzz -G Ninja \
+  -DCMAKE_CXX_COMPILER=clang++ \
+  -DSSP_BUILD_TESTS=OFF \
+  -DSSP_ENABLE_SANITIZERS=ON \
+  -DSSP_BUILD_FUZZERS=ON
+cmake --build build/linux-fuzz --parallel
+./build/linux-fuzz/semi_stream_probe_annex_b_fuzzer -max_total_time=60
+```
+
+普通测试构建还会运行同一 fuzz 入口的固定回归语料，因此 Windows/MSVC 和
+Linux/GCC CI 都会检查空输入、非法起始码、非法 EBSP 以及截断 SPS/PPS/Slice。
 
 ## 文档
 

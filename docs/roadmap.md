@@ -21,7 +21,7 @@
 
 尚未闭环：
 
-- 尚无完整故障注入样本、交叉验证、CI 和 Release。
+- 尚未完成工具交叉验证、长时监听验收和 Release。
 
 ## 2. 冻结范围
 
@@ -154,8 +154,8 @@ semistreamprobe --version
 - [x] FU-A 丢首片、丢中片和丢尾片；
 - [x] 丢包、重复、乱序和序列号回绕；
 - [ ] 与 FFmpeg/ffprobe 和 Wireshark 交叉验证；
-- [ ] Linux ASan/UBSan（配置已完成，等待 CI 验收）；
-- [ ] 至少一个解析器 fuzz target 和固定语料冒烟；
+- [x] Linux ASan/UBSan；
+- [x] 至少一个解析器 fuzz target 和固定语料冒烟；
 - [ ] 1080p30 RTP 连续监听 30 分钟；
 
 完成条件：故障场景可重复、损坏输入不崩溃、网络异常后分析器可以恢复并继续统计。
@@ -163,7 +163,7 @@ semistreamprobe --version
 ### Milestone E：v0.1.0 发布
 
 - [x] 确定项目许可证（MIT）；
-- [ ] Windows/MSVC 和 Linux/GCC CI（工作流已完成，等待首次通过）；
+- [x] Windows/MSVC 和 Linux/GCC CI；
 - [ ] Windows x64 便携包；
 - [x] 正常流与 IDR FU-A 丢片的一分钟演示；
 - [ ] GitHub Release、SHA-256 和完整使用说明；
