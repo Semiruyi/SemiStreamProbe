@@ -77,7 +77,37 @@ build\mingw-debug\semistreamprobe_demo.exe send `
 缺首片场景产生 `H264_FU_A_MISSING_START`；缺尾片场景产生
 `H264_FU_A_INCOMPLETE` 和 `H264_IDR_INCOMPLETE`。
 
-## 5. 真实媒体与外部工具交叉验证
+## 5. RTP 丢包、重复、乱序和回绕
+
+以下场景仍使用终端 A 的同一监听命令，只替换终端 B 的 `--scenario`：
+
+```powershell
+build\mingw-debug\semistreamprobe_demo.exe send `
+  --target 127.0.0.1:5004 --scenario rtp-gap
+
+build\mingw-debug\semistreamprobe_demo.exe send `
+  --target 127.0.0.1:5004 --scenario rtp-duplicate
+
+build\mingw-debug\semistreamprobe_demo.exe send `
+  --target 127.0.0.1:5004 --scenario rtp-reorder
+
+build\mingw-debug\semistreamprobe_demo.exe send `
+  --target 127.0.0.1:5004 --scenario rtp-wrap
+```
+
+预期结果：
+
+| 场景 | 包序列 | 关键统计 | 诊断 |
+|---|---|---|---|
+| `rtp-gap` | `1000, 1001, 1003, 1004` | `lost=1` | `RTP_SEQUENCE_GAP` |
+| `rtp-duplicate` | `1000, 1000, 1001, 1002, 1003` | `duplicate=1` | `RTP_DUPLICATE_PACKET` |
+| `rtp-reorder` | `1000, 1002, 1001, 1003, 1004` | `lost=0, out_of_order=1` | `RTP_SEQUENCE_GAP`, `RTP_OUT_OF_ORDER_PACKET` |
+| `rtp-wrap` | `65534, 65535, 0, 1` | `expected=4, lost=0` | 无 |
+
+`rtp-reorder` 先观察到序列缺口，迟到包到达后将最终 `packets_lost` 修正为 0；首版不把迟到
+payload 回填到 H.264 重组链路。`rtp-duplicate` 的重复 payload 同样不会重复进入 H.264 模型。
+
+## 6. 真实媒体与外部工具交叉验证
 
 `samples/local/` 被 Git 忽略，用于保存自动生成或尚未确认再分发权利的媒体。安装 FFmpeg
 后，可以生成一段具有明确来源的测试图并编码为 Annex-B：

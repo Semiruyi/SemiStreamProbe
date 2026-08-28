@@ -152,7 +152,7 @@ semistreamprobe --version
 
 - [x] 正常 Annex-B 与 RTP 确定性样本；
 - [x] FU-A 丢首片、丢中片和丢尾片；
-- [ ] 丢包、重复、乱序和序列号回绕；
+- [x] 丢包、重复、乱序和序列号回绕；
 - [ ] 与 FFmpeg/ffprobe 和 Wireshark 交叉验证；
 - [ ] Linux ASan/UBSan；
 - [ ] 至少一个解析器 fuzz target 和固定语料冒烟；

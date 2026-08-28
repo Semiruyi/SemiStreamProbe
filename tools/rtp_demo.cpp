@@ -42,6 +42,7 @@ constexpr std::array<Byte, 10> sps{
 constexpr std::array<Byte, 4> pps{0x68, 0xCE, 0x3C, 0x80};
 constexpr std::array<Byte, 5> idr{0x65, 0x88, 0x84, 0x0A, 0x80};
 constexpr std::array<Byte, 4> p_slice{0x61, 0xE2, 0x22, 0xA0};
+constexpr std::array<Byte, 2> aud{0x09, 0xF0};
 
 #ifdef _WIN32
 using NativeSocket = SOCKET;
@@ -181,6 +182,10 @@ enum class Scenario {
     fu_middle_loss,
     fu_missing_start,
     fu_missing_end,
+    rtp_gap,
+    rtp_duplicate,
+    rtp_reorder,
+    rtp_wrap,
 };
 
 struct SendOptions {
@@ -197,7 +202,8 @@ void print_usage() {
         << "Usage:\n"
         << "  semistreamprobe_demo annex-b --output <file.h264>\n"
         << "  semistreamprobe_demo send --target <address:port>\n"
-        << "      [--scenario normal|fu-middle-loss|fu-missing-start|fu-missing-end]\n"
+        << "      [--scenario normal|fu-middle-loss|fu-missing-start|fu-missing-end|\n"
+        << "                  rtp-gap|rtp-duplicate|rtp-reorder|rtp-wrap]\n"
         << "      [--payload-type <0..127>] [--sequence-start <0..65535>]\n"
         << "      [--interval-ms <0..1000>]\n";
 }
@@ -231,6 +237,18 @@ parse_scenario(std::string_view text) {
     }
     if (text == "fu-missing-end") {
         return Scenario::fu_missing_end;
+    }
+    if (text == "rtp-gap") {
+        return Scenario::rtp_gap;
+    }
+    if (text == "rtp-duplicate") {
+        return Scenario::rtp_duplicate;
+    }
+    if (text == "rtp-reorder") {
+        return Scenario::rtp_reorder;
+    }
+    if (text == "rtp-wrap") {
+        return Scenario::rtp_wrap;
     }
     return std::unexpected("invalid --scenario value: " + std::string(text));
 }
@@ -308,33 +326,69 @@ parse_scenario(std::string_view text) {
         return 1;
     }
     std::uint16_t sequence = options.sequence_start;
+    if (options.scenario == Scenario::rtp_wrap) {
+        sequence = 65'534;
+    }
     std::uint64_t sent_count = 0;
+
+    auto send_exact = [&](std::uint16_t packet_sequence,
+                          ByteView payload,
+                          std::uint32_t timestamp,
+                          bool marker,
+                          std::string_view label)
+        -> std::expected<void, std::string> {
+        auto packet = make_rtp_packet(packet_sequence, timestamp, payload,
+                                      options.payload_type, marker);
+        if (auto result = sender->send(packet); !result) {
+            return result;
+        }
+        std::cout << "sent seq=" << packet_sequence << ' ' << label << '\n';
+        ++sent_count;
+        std::this_thread::sleep_for(options.interval);
+        return {};
+    };
 
     auto send = [&](ByteView payload,
                     std::uint32_t timestamp,
                     bool marker,
                     std::string_view label)
         -> std::expected<void, std::string> {
-        auto packet = make_rtp_packet(sequence, timestamp, payload,
-                                      options.payload_type, marker);
-        if (auto result = sender->send(packet); !result) {
-            return result;
+        const auto result = send_exact(sequence, payload, timestamp, marker,
+                                       label);
+        if (result) {
+            sequence = static_cast<std::uint16_t>(sequence + 1U);
         }
-        std::cout << "sent seq=" << sequence << ' ' << label << '\n';
-        sequence = static_cast<std::uint16_t>(sequence + 1U);
-        ++sent_count;
-        std::this_thread::sleep_for(options.interval);
-        return {};
+        return result;
     };
 
     const auto fragments = make_idr_fu_a();
+    const auto sps_sequence = sequence;
     if (auto result = send(sps, 0, false, "SPS"); !result) {
         std::cerr << result.error() << '\n';
         return 1;
     }
+    if (options.scenario == Scenario::rtp_duplicate) {
+        if (auto result = send_exact(sps_sequence, sps, 0, false,
+                                     "duplicate SPS"); !result) {
+            std::cerr << result.error() << '\n';
+            return 1;
+        }
+    }
+    std::optional<std::uint16_t> late_sequence;
+    if (options.scenario == Scenario::rtp_reorder) {
+        late_sequence = sequence;
+        sequence = static_cast<std::uint16_t>(sequence + 1U);
+    }
     if (auto result = send(pps, 0, false, "PPS"); !result) {
         std::cerr << result.error() << '\n';
         return 1;
+    }
+    if (late_sequence) {
+        if (auto result = send_exact(*late_sequence, aud, 0, false,
+                                     "late AUD"); !result) {
+            std::cerr << result.error() << '\n';
+            return 1;
+        }
     }
 
     auto checked_send = [&](ByteView payload,
@@ -380,6 +434,22 @@ parse_scenario(std::string_view text) {
     case Scenario::fu_missing_end:
         if (!checked_send(fragments[0], 3000, false, "IDR FU-A start") ||
             !checked_send(fragments[1], 3000, false, "IDR FU-A middle")) {
+            return 1;
+        }
+        break;
+    case Scenario::rtp_gap:
+        std::cout << "drop seq=" << sequence << " AUD\n";
+        sequence = static_cast<std::uint16_t>(sequence + 1U);
+        if (!checked_send(idr, 3000, true, "IDR") ||
+            !checked_send(p_slice, 6000, true, "P slice")) {
+            return 1;
+        }
+        break;
+    case Scenario::rtp_duplicate:
+    case Scenario::rtp_reorder:
+    case Scenario::rtp_wrap:
+        if (!checked_send(idr, 3000, true, "IDR") ||
+            !checked_send(p_slice, 6000, true, "P slice")) {
             return 1;
         }
         break;
