@@ -119,6 +119,26 @@ std::vector<DepacketizedH264NalUnit> H264RtpStreamAnalyzer::push(
                                    stap.error().message);
             return output;
         }
+        if (stap->indicator.nal_ref_idc != stap->maximum_nal_ref_idc) {
+            diagnostics_.push_back(Diagnostic{
+                .severity = DiagnosticSeverity::warning,
+                .code = DiagnosticCode::h264_stap_a_nri_mismatch,
+                .summary = "STAP-A indicator NRI does not match its NAL units",
+                .evidence =
+                    "RFC 6184 requires the STAP-A NRI to equal the maximum "
+                    "contained NAL NRI; indicator NRI is " +
+                    std::to_string(stap->indicator.nal_ref_idc) +
+                    " and maximum contained NRI is " +
+                    std::to_string(stap->maximum_nal_ref_idc),
+                .impact =
+                    "the aggregation priority metadata is non-conformant; "
+                    "contained NAL units were still analyzed",
+                .recovery =
+                    "the sender should set the STAP-A NRI to the maximum NRI "
+                    "of its contained NAL units",
+                .location = location_for(packet),
+            });
+        }
         for (std::size_t index = 0; index < stap->nal_units.size(); ++index) {
             const auto& nal = stap->nal_units[index];
             const bool marker = packet.marker &&

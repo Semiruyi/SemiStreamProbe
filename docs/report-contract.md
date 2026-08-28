@@ -83,7 +83,8 @@ struct Diagnostic {
 | `RTP_DUPLICATE_PACKET` | warning | 已经接收的序列号再次到达 |
 | `RTP_OUT_OF_ORDER_PACKET` | warning | 旧序列号在更新序列号之后到达 |
 | `H264_RTP_INVALID_PAYLOAD` | error | RFC 6184 负载类型或字段非法 |
-| `H264_STAP_A_INVALID` | error | STAP-A 长度、空 NAL、嵌套类型或 NRI 约束非法 |
+| `H264_STAP_A_INVALID` | error | STAP-A 长度、空 NAL 或嵌套类型非法 |
+| `H264_STAP_A_NRI_MISMATCH` | warning | STAP-A NRI 不等于内部 NAL 的最大 NRI；保留内部 NAL 继续分析 |
 | `H264_FU_A_MISSING_START` | error | continuation/end 到达时没有活动起始片 |
 | `H264_FU_A_SEQUENCE_GAP` | error | FU-A 重组期间序列号不连续，当前 NAL 被丢弃 |
 | `H264_FU_A_INTERRUPTED` | error | 前一个 FU-A 未完成便收到新的起始片 |

@@ -33,6 +33,8 @@ std::string_view to_string(DiagnosticCode code) noexcept {
         return "H264_RTP_INVALID_PAYLOAD";
     case DiagnosticCode::h264_stap_a_invalid:
         return "H264_STAP_A_INVALID";
+    case DiagnosticCode::h264_stap_a_nri_mismatch:
+        return "H264_STAP_A_NRI_MISMATCH";
     case DiagnosticCode::h264_fu_a_missing_start:
         return "H264_FU_A_MISSING_START";
     case DiagnosticCode::h264_fu_a_sequence_gap:

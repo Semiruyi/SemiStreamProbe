@@ -235,6 +235,32 @@ void test_invalid_stap_a() {
           "invalid STAP-A diagnostic");
 }
 
+void test_stap_a_nri_mismatch_warning() {
+    semi_stream_probe::H264RtpStreamAnalyzer analyzer;
+    constexpr semi_stream_probe::Byte mismatched_stap[]{
+        0x18,
+        0x00, 0x02, 0x67, 0x42,
+        0x00, 0x02, 0x68, 0xCE,
+    };
+    const auto output =
+        analyzer.push(make_packet(51, 93'000, mismatched_stap, true), 0ms);
+    check(output.size() == 2,
+          "STAP-A NRI mismatch preserves contained NAL units");
+    check(count_diagnostic(
+              analyzer,
+              semi_stream_probe::DiagnosticCode::h264_stap_a_nri_mismatch) ==
+              1,
+          "STAP-A NRI mismatch produces a dedicated warning");
+    for (const auto& diagnostic : analyzer.diagnostics()) {
+        if (diagnostic.code == semi_stream_probe::DiagnosticCode::
+                                   h264_stap_a_nri_mismatch) {
+            check(diagnostic.severity ==
+                      semi_stream_probe::DiagnosticSeverity::warning,
+                  "STAP-A NRI mismatch is recoverable");
+        }
+    }
+}
+
 } // namespace
 
 int main() {
@@ -244,6 +270,7 @@ int main() {
     test_missing_start_and_new_start_recovery();
     test_context_change_and_finish();
     test_invalid_stap_a();
+    test_stap_a_nri_mismatch_warning();
 
     if (failures != 0) {
         std::cerr << failures << " H.264 RTP stream analyzer test(s) failed\n";

@@ -90,7 +90,7 @@ semistreamprobe --version
 4. RTP 重复包；
 5. RTP 乱序包；
 6. H.264/RTP 负载类型或字段非法；
-7. STAP-A 长度、空 NAL、嵌套类型或 NRI 约束非法；
+7. STAP-A 长度、空 NAL、嵌套类型非法，以及可恢复的 NRI 不匹配；
 8. FU-A continuation/end 缺少起始片；
 9. FU-A 中间分片丢失；
 10. 前一个 FU-A 未完成便出现新的起始片；
@@ -153,7 +153,8 @@ semistreamprobe --version
 - [x] 正常 Annex-B 与 RTP 确定性样本；
 - [x] FU-A 丢首片、丢中片和丢尾片；
 - [x] 丢包、重复、乱序和序列号回绕；
-- [ ] 与 FFmpeg/ffprobe 和 Wireshark 交叉验证；
+- [x] 与 FFmpeg/ffprobe 交叉验证 Annex-B 统计和 RTP/H.264 接收；
+- [ ] 使用 Wireshark/tshark 核对 RTP Header 字段；
 - [x] Linux ASan/UBSan；
 - [x] 至少一个解析器 fuzz target 和固定语料冒烟；
 - [ ] 1080p30 RTP 连续监听 30 分钟；

@@ -127,7 +127,8 @@ build\mingw-debug\semistreamprobe.exe inspect `
 通过 RTP 发送同一媒体：
 
 ```powershell
-ffmpeg -re -stream_loop -1 -i samples/local/testsrc-1080p30.h264 `
+ffmpeg -framerate 30 -re -stream_loop -1 `
+  -i samples/local/testsrc-1080p30.h264 `
   -an -c:v copy -f rtp "rtp://127.0.0.1:5004?pkt_size=1200"
 ```
 

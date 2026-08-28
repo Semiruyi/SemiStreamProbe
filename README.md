@@ -172,6 +172,7 @@ Linux/GCC CI 都会检查空输入、非法起始码、非法 EBSP 以及截断 
 | [项目路线图](docs/roadmap.md) | v0.1.0 冻结范围、CLI 契约、实现顺序和完成标准 |
 | [报告契约](docs/report-contract.md) | Diagnostic、AnalysisReport、JSON 字段和完整示例 |
 | [测试样本](samples/README.md) | 本地媒体生成方式和样本许可证约束 |
+| [外部工具验证](docs/validation.md) | FFmpeg/ffprobe 对照结果和 Wireshark 待验收项 |
 
 ## 参考标准
 

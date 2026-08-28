@@ -27,6 +27,8 @@ namespace semi_stream_probe::infrastructure {
 
 namespace {
 
+constexpr int udp_socket_receive_buffer_size = 4 * 1024 * 1024;
+
 #ifdef _WIN32
 using NativeSocket = SOCKET;
 constexpr NativeSocket invalid_native_socket = INVALID_SOCKET;
@@ -196,6 +198,14 @@ UdpReceiver::bind(const UdpEndpoint& endpoint) {
                                                 current->ai_socktype,
                                                 current->ai_protocol);
         if (candidate == invalid_native_socket) {
+            continue;
+        }
+        if (setsockopt(
+                candidate, SOL_SOCKET, SO_RCVBUF,
+                reinterpret_cast<const char*>(&udp_socket_receive_buffer_size),
+                static_cast<int>(sizeof(udp_socket_receive_buffer_size))) !=
+            0) {
+            close_native_socket(candidate);
             continue;
         }
         if (::bind(candidate, current->ai_addr,

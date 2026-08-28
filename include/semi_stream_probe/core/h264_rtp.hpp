@@ -38,6 +38,7 @@ struct H264NalUnitView {
 struct H264StapAPacket {
     NalHeader indicator;
     std::vector<H264NalUnitView> nal_units;
+    std::uint8_t maximum_nal_ref_idc{0};
 };
 
 struct H264FuAFragment {
@@ -80,7 +81,8 @@ depacketize_h264_single_nal(const RtpPacket& packet);
 // Splits an RFC 6184 STAP-A payload into complete, zero-copy NAL unit views.
 // Each aggregation unit is encoded as a 16-bit big-endian size followed by
 // one NAL unit. Nested aggregation packets and fragmentation units are
-// rejected.
+// rejected. An indicator NRI mismatch is exposed in the returned metadata so
+// callers can diagnose the RFC violation without discarding contained NALs.
 [[nodiscard]] std::expected<H264StapAPacket, ParseError>
 depacketize_h264_stap_a(const RtpPacket& packet);
 

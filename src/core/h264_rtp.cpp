@@ -134,6 +134,7 @@ depacketize_h264_stap_a(const RtpPacket& packet) {
     H264StapAPacket result{
         .indicator = payload_header->nal_header,
         .nal_units = {},
+        .maximum_nal_ref_idc = 0,
     };
     auto offset = std::size_t{1};
     if (offset == packet.payload.size()) {
@@ -188,12 +189,7 @@ depacketize_h264_stap_a(const RtpPacket& packet) {
         offset += nal_size;
     }
 
-    if (result.indicator.nal_ref_idc != maximum_nal_ref_idc) {
-        return std::unexpected(make_h264_rtp_error(
-            packet, 0,
-            "STAP-A NRI must equal the maximum NRI of its contained NAL units"));
-    }
-
+    result.maximum_nal_ref_idc = maximum_nal_ref_idc;
     return result;
 }
 

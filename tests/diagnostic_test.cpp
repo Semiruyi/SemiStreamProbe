@@ -50,6 +50,8 @@ void test_stable_code_strings() {
                   std::string_view{"H264_RTP_INVALID_PAYLOAD"}},
         std::pair{DiagnosticCode::h264_stap_a_invalid,
                   std::string_view{"H264_STAP_A_INVALID"}},
+        std::pair{DiagnosticCode::h264_stap_a_nri_mismatch,
+                  std::string_view{"H264_STAP_A_NRI_MISMATCH"}},
         std::pair{DiagnosticCode::h264_fu_a_missing_start,
                   std::string_view{"H264_FU_A_MISSING_START"}},
         std::pair{DiagnosticCode::h264_fu_a_sequence_gap,

@@ -23,6 +23,7 @@ enum class DiagnosticCode {
     rtp_out_of_order_packet,
     h264_rtp_invalid_payload,
     h264_stap_a_invalid,
+    h264_stap_a_nri_mismatch,
     h264_fu_a_missing_start,
     h264_fu_a_sequence_gap,
     h264_fu_a_interrupted,

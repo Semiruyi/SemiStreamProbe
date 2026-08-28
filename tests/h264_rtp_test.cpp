@@ -126,6 +126,7 @@ void test_stap_a_depacketization() {
 
     check(stap_a->indicator.nal_unit_type == 24, "STAP-A indicator type");
     check(stap_a->indicator.nal_ref_idc == 3, "STAP-A indicator NRI");
+    check(stap_a->maximum_nal_ref_idc == 3, "STAP-A maximum contained NRI");
     check(stap_a->nal_units.size() == 2, "STAP-A contains two NAL units");
     if (stap_a->nal_units.size() != 2) {
         return;
@@ -216,19 +217,31 @@ void test_invalid_stap_a_payloads() {
         semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 3,
         "STAP-A containing FU-A should fail");
 
-    constexpr std::array<semi_stream_probe::Byte, 4> nri_mismatch{
-        0x78, 0x00, 0x01, 0x47,
-    };
-    check_stap_a_error(
-        nri_mismatch,
-        semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 0,
-        "STAP-A NRI mismatch should fail");
-
     constexpr std::array<semi_stream_probe::Byte, 2> single_nal{0x67, 0x42};
     check_stap_a_error(
         single_nal,
         semi_stream_probe::ParseErrorCode::invalid_h264_rtp_payload, 0,
         "Single NAL must not be treated as STAP-A");
+}
+
+void test_stap_a_nri_mismatch_is_recoverable() {
+    constexpr std::array<semi_stream_probe::Byte, 4> payload{
+        0x18, 0x00, 0x01, 0x67,
+    };
+    semi_stream_probe::RtpPacket packet;
+    packet.sequence_number = 778;
+    packet.payload = payload;
+
+    const auto result = semi_stream_probe::depacketize_h264_stap_a(packet);
+    check(result.has_value(), "STAP-A NRI mismatch remains parseable");
+    if (result) {
+        check(result->indicator.nal_ref_idc == 0,
+              "mismatched STAP-A indicator NRI is preserved");
+        check(result->maximum_nal_ref_idc == 3,
+              "maximum contained NRI is exposed for diagnostics");
+        check(result->nal_units.size() == 1,
+              "NRI mismatch does not discard contained NAL units");
+    }
 }
 
 semi_stream_probe::RtpPacket make_rtp_packet(
@@ -559,6 +572,7 @@ int main() {
     test_rtp_padding_is_not_nal_data();
     test_stap_a_depacketization();
     test_invalid_stap_a_payloads();
+    test_stap_a_nri_mismatch_is_recoverable();
     test_fu_a_fragment_parsing();
     test_invalid_fu_a_fragments();
     test_fu_a_reassembly_and_sequence_wrap();
