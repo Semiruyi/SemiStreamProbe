@@ -7,7 +7,7 @@ SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。�
 项目正在收口 `v0.1.0`。H.264 Annex-B 语法解析和 RTP/H.264 负载处理的核心组件已经
 完成；统一报告模型、Annex-B JSON，以及从 UDP 接收、RTP 会话统计、RFC 6184 解包到
 H.264 SPS/PPS/Slice、Access Unit、GOP 和诊断报告的链路已经接通。确定性验证样本、CI
-和发布前安全检查已经完成；剩余工作是 Windows 便携包和发布材料。
+和发布前安全检查已经完成；Windows 便携包已通过 CI 验收，等待发布 `v0.1.0`。
 
 ## 当前可用能力
 
@@ -186,6 +186,7 @@ Linux/GCC CI 都会检查空输入、非法起始码、非法 EBSP 以及截断 
 | [报告契约](docs/report-contract.md) | Diagnostic、AnalysisReport、JSON 字段和完整示例 |
 | [测试样本](samples/README.md) | 本地媒体生成方式和样本许可证约束 |
 | [外部工具验证](docs/validation.md) | FFmpeg/ffprobe 对照结果和 Wireshark 待验收项 |
+| [v0.1.0 发布说明](docs/release-v0.1.0.md) | 下载校验、一分钟演示、验证记录和已知边界 |
 
 ## 参考标准
 

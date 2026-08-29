@@ -21,7 +21,7 @@
 
 尚未闭环：
 
-- 尚未完成 Windows 便携包和 Release。
+- 尚未发布 GitHub Release。
 
 ## 2. 冻结范围
 
@@ -164,10 +164,11 @@ semistreamprobe --version
 
 - [x] 确定项目许可证（MIT）；
 - [x] Windows/MSVC 和 Linux/GCC CI；
-- [ ] Windows x64 便携包（本地 MinGW ZIP 已验收，等待 MSVC CI artifact）；
+- [x] Windows x64 便携包；
 - [x] 正常流与 IDR FU-A 丢片的一分钟演示；
 - [x] CPack 自动生成并校验 SHA-256；
-- [ ] GitHub Release 和完整发布说明；
+- [x] 完整发布说明；
+- [ ] GitHub Release；
 
 完成条件：新用户下载 Release 后，可以在一分钟内完成一次正常分析和一次故障分析。
 
