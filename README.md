@@ -133,6 +133,19 @@ cmake --build --preset mingw-release
 ctest --preset mingw-release
 ```
 
+生成 Windows x64 便携 ZIP 和 SHA-256：
+
+```powershell
+cpack --config build\mingw-release\CPackConfig.cmake -G ZIP
+```
+
+产物位于 `build/mingw-release/package/`，解压后可直接运行：
+
+```powershell
+.\SemiStreamProbe-0.1.0-windows-x64\bin\semistreamprobe.exe --version
+.\SemiStreamProbe-0.1.0-windows-x64\bin\semistreamprobe_demo.exe --help
+```
+
 Preset 假定 `g++` 和 `ninja` 已位于 `PATH`。查看 CLI 帮助：
 
 ```powershell

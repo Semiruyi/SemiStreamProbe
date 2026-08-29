@@ -29,6 +29,30 @@ jobs:
       - name: Test
         run: ctest --test-dir build/ci-windows -C Release --output-on-failure
 
+      - name: Package portable ZIP
+        run: cpack --config build/ci-windows/CPackConfig.cmake -C Release -G ZIP
+
+      - name: Verify portable ZIP
+        shell: pwsh
+        run: |
+          $archive = Get-ChildItem build/ci-windows/package/*.zip | Select-Object -First 1
+          if (-not $archive) { throw "portable ZIP was not generated" }
+          Expand-Archive -LiteralPath $archive.FullName -DestinationPath build/ci-package-check
+          $root = Get-ChildItem build/ci-package-check -Directory | Select-Object -First 1
+          & "$($root.FullName)/bin/semistreamprobe.exe" --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$($root.FullName)/bin/semistreamprobe_demo.exe" --help
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: SemiStreamProbe-0.1.0-windows-x64
+          path: |
+            build/ci-windows/package/*.zip
+            build/ci-windows/package/*.sha256
+          if-no-files-found: error
+
   linux-sanitizers:
     name: Linux / GCC / ASan+UBSan
     runs-on: ubuntu-latest

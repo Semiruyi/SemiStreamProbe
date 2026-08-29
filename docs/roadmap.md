@@ -164,9 +164,10 @@ semistreamprobe --version
 
 - [x] 确定项目许可证（MIT）；
 - [x] Windows/MSVC 和 Linux/GCC CI；
-- [ ] Windows x64 便携包；
+- [ ] Windows x64 便携包（本地 MinGW ZIP 已验收，等待 MSVC CI artifact）；
 - [x] 正常流与 IDR FU-A 丢片的一分钟演示；
-- [ ] GitHub Release、SHA-256 和完整使用说明；
+- [x] CPack 自动生成并校验 SHA-256；
+- [ ] GitHub Release 和完整发布说明；
 
 完成条件：新用户下载 Release 后，可以在一分钟内完成一次正常分析和一次故障分析。
 

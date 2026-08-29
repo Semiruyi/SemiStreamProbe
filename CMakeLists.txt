@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 option(SSP_BUILD_TESTS "Build SemiStreamProbe tests" ON)
 option(SSP_BUILD_FUZZERS "Build libFuzzer targets (requires Clang)" OFF)
 option(SSP_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
@@ -489,4 +493,30 @@ if(BUILD_TESTING AND SSP_BUILD_TESTS)
         COMMAND semistreamprobe_demo --help
     )
 endif()
+
+install(TARGETS semistreamprobe semistreamprobe_demo
+    RUNTIME DESTINATION bin
+)
+install(FILES README.md LICENSE
+    DESTINATION .
+)
+install(DIRECTORY docs/
+    DESTINATION docs
+)
+install(FILES samples/README.md
+    DESTINATION samples
+)
+
+set(CPACK_GENERATOR "ZIP")
+set(CPACK_PACKAGE_VENDOR "SemiStreamProbe contributors")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY
+    "H.264/RTP bitstream diagnostics for Windows x64"
+)
+set(CPACK_PACKAGE_FILE_NAME
+    "SemiStreamProbe-${PROJECT_VERSION}-windows-x64"
+)
+set(CPACK_PACKAGE_DIRECTORY "${CMAKE_BINARY_DIR}/package")
+set(CPACK_PACKAGE_CHECKSUM "SHA256")
+set(CPACK_RESOURCE_FILE_LICENSE "${PROJECT_SOURCE_DIR}/LICENSE")
+include(CPack)
 
