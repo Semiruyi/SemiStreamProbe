@@ -55,7 +55,26 @@ FFmpeg 每个 IDR 前发送一个 NRI 为 0、但内部最大 NRI 为 3 的 STAP
 `H264_STAP_A_NRI_MISMATCH` warning。RFC 6184 §5.7 要求聚合包 NRI 必须等于内部 NAL
 的最大 NRI；SemiStreamProbe 保留该合规性证据，同时继续分析结构完整的内部 NAL。
 
-## 尚待验证
+## 1080p30 长时监听
 
-当前环境未安装 Wireshark/tshark。安装后还需使用同一 RTP 流核对 sequence、timestamp、
-marker、SSRC 和 Payload Type，再完成外部工具交叉验证里程碑。
+验证日期：2026-08-29。FFmpeg 实时生成 1920×1080、30 fps 的 `testsrc2`，使用
+libx264 ultrafast、单线程、GOP 60 编码，通过 RTP 发送 1800 秒。SemiStreamProbe 同时
+监听 1800 秒，并以 30 秒间隔采样进程工作集。
+
+结果：
+
+- 报告状态 `complete`，监听窗口约 1798.9 秒；
+- RTP 包 `2,987,970/2,987,970`，丢包、重复和乱序均为 0；
+- 53,981 个 Slice、53,981 个 Access Unit、900 个 IDR；
+- Baseline、Level 4.0、1920×1080；
+- error 为 0；900 条 warning 均为已知的 `H264_STAP_A_NRI_MISMATCH`；
+- SemiStreamProbe 工作集从 7.1 MiB 增至最多 30.2 MiB，随累计 AU 和诊断近似线性增长，
+  未出现增长加速或异常退出；FFmpeg 最大工作集为 109.4 MiB。
+
+监听器先于发送器约 1 秒启动，并在发送器结束前到达自身 1800 秒期限，因此最终 AU 比
+理论值 54,000 少 19；RTP 序列统计确认监听窗口内没有丢包。
+
+## 后续验证
+
+当前环境未安装 Wireshark/tshark。RTP Header 字段抓包核对推迟到 `v0.1.0` 之后，不阻塞
+首版发布；后续可使用同一 RTP 流核对 sequence、timestamp、marker、SSRC 和 Payload Type。

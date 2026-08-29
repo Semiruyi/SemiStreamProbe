@@ -21,7 +21,7 @@
 
 尚未闭环：
 
-- 尚未完成工具交叉验证、长时监听验收和 Release。
+- 尚未完成 Windows 便携包和 Release。
 
 ## 2. 冻结范围
 
@@ -154,10 +154,9 @@ semistreamprobe --version
 - [x] FU-A 丢首片、丢中片和丢尾片；
 - [x] 丢包、重复、乱序和序列号回绕；
 - [x] 与 FFmpeg/ffprobe 交叉验证 Annex-B 统计和 RTP/H.264 接收；
-- [ ] 使用 Wireshark/tshark 核对 RTP Header 字段；
 - [x] Linux ASan/UBSan；
 - [x] 至少一个解析器 fuzz target 和固定语料冒烟；
-- [ ] 1080p30 RTP 连续监听 30 分钟；
+- [x] 1080p30 RTP 连续监听 30 分钟；
 
 完成条件：故障场景可重复、损坏输入不崩溃、网络异常后分析器可以恢复并继续统计。
 
@@ -193,4 +192,5 @@ semistreamprobe --version
 - RTSP 输入适配；
 - RTCP、丢包反馈与恢复分析；
 - H.265/RTP；
-- HTML 可视化报告。
+- HTML 可视化报告；
+- 使用 Wireshark/tshark 核对 RTP Header 字段。
