@@ -1,13 +1,21 @@
 # SemiStreamProbe
 
+[![CI](https://github.com/Semiruyi/SemiStreamProbe/actions/workflows/ci.yml/badge.svg)](https://github.com/Semiruyi/SemiStreamProbe/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Semiruyi/SemiStreamProbe?display_name=tag)](https://github.com/Semiruyi/SemiStreamProbe/releases/latest)
+[![License](https://img.shields.io/github/license/Semiruyi/SemiStreamProbe)](LICENSE)
+
 SemiStreamProbe 是一个使用 C++23 开发的 H.264/RTP 码流诊断工具。它把“花屏、卡顿、
 无法起播”等现象转换为可以定位和复现的码流证据，同时用于系统学习 H.264、RFC 6184
 和实时音视频故障分析。
 
-项目正在收口 `v0.1.0`。H.264 Annex-B 语法解析和 RTP/H.264 负载处理的核心组件已经
-完成；统一报告模型、Annex-B JSON，以及从 UDP 接收、RTP 会话统计、RFC 6184 解包到
-H.264 SPS/PPS/Slice、Access Unit、GOP 和诊断报告的链路已经接通。确定性验证样本、CI
-和发布前安全检查已经完成；Windows 便携包已通过 CI 验收，等待发布 `v0.1.0`。
+`v0.1.0` 已发布。首版提供 H.264 Annex-B 文件分析和单路 UDP/RTP/H.264 实时监听，
+两条入口共享 H.264 流模型、诊断模型及文本/JSON 报告模型。版本已通过 Windows/Linux
+CI、ASan/UBSan、固定语料 fuzz、FFmpeg/ffprobe 交叉验证和 1080p30 RTP 30 分钟连续
+监听验收。
+
+[下载 Windows x64 便携版](https://github.com/Semiruyi/SemiStreamProbe/releases/download/v0.1.0/SemiStreamProbe-0.1.0-windows-x64.zip)
+· [查看 v0.1.0 Release](https://github.com/Semiruyi/SemiStreamProbe/releases/tag/v0.1.0)
+· [阅读架构设计](docs/architecture.md)
 
 ## 当前可用能力
 
@@ -65,7 +73,7 @@ UDP/RTP ──→ RTP session analysis ──→ RFC 6184 depacketization
         ──→ H.264 syntax/model ──→ diagnostics/report
 ```
 
-版本收口包含：
+首版包含：
 
 - Annex-B 文件检查；
 - RTP/H.264 UDP 监听；
@@ -78,6 +86,12 @@ UDP/RTP ──→ RTP session analysis ──→ RFC 6184 depacketization
 
 冻结后的 CLI 契约和逐项验收条件见 [项目路线图](docs/roadmap.md)。内部边界和数据流见
 [架构设计](docs/architecture.md)。
+
+## 项目状态
+
+`v0.1.0` 的功能范围已经冻结并完成发布，当前仅维护已发布能力和修复缺陷。PCAP、RTSP、
+RTCP、H.265 等扩展只在实际岗位或项目需求明确时继续；当前开发重点已转向
+[SemiLive](https://github.com/Semiruyi/SemiLive) 的采集、编码与实时传输闭环。
 
 ## 非目标
 
@@ -185,7 +199,7 @@ Linux/GCC CI 都会检查空输入、非法起始码、非法 EBSP 以及截断 
 | [项目路线图](docs/roadmap.md) | v0.1.0 冻结范围、CLI 契约、实现顺序和完成标准 |
 | [报告契约](docs/report-contract.md) | Diagnostic、AnalysisReport、JSON 字段和完整示例 |
 | [测试样本](samples/README.md) | 本地媒体生成方式和样本许可证约束 |
-| [外部工具验证](docs/validation.md) | FFmpeg/ffprobe 对照结果和 Wireshark 待验收项 |
+| [外部工具验证](docs/validation.md) | FFmpeg/ffprobe 对照结果、30 分钟监听及待验收项 |
 | [v0.1.0 发布说明](docs/release-v0.1.0.md) | 下载校验、一分钟演示、验证记录和已知边界 |
 
 ## 参考标准
